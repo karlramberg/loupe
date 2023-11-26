@@ -4,52 +4,77 @@ A gnostic command line interface for organizing an archive of photographs
 
 ## Summary
 
-Essentially, Loupe is set of commands you can run to organize a directory of photographs. This
-includes file renaming, basic conversions, resizing, sorting, and ingesting. Loupe requires no
-external configuration files to run. Filenames themselves hold the most important metadata used to
-sort themselves. File use the basic format `date_number_group_version`. Pictures are sorted into
-folders first by their group and then their version.
+Loupe is essentially a set of commands you can run to organize a folder of photographs. This
+includes file renaming, basic conversions, resizing, sorting, and importing. Loupe requires no
+external configuration files to run. Filenames themselves hold the metadata used to sort themselves.
 
-**An Example**
+Files use the basic format `identifier_group_version`. Each of the three parts can be further split
+up. The identifier always needs to be formatted to be `date-number`. The group can optionally
+include a class in order to group groups (`class-group`). The version can optionally include a 
+subversion to better organize things (`version-subversion`). Photographs are sorted in the same
+order they are named: class, group, version and subversion.
+
+**Two example filenames**
+
+`241201-007_granite_master.tif` would be the name for the master tif file of the 7th photograph
+taken on December 1st, 2024, grouped into granite. It would reside in the folder
+`photographs/granite/masters/`.
+
+`270630-028_trip-berlin2027_print-8x10.tif` would be the name for the print-ready file, sized to
+8x10" of the 28th photograph taken on June 30th, 2027 on a trip to Berlin. It would reside in the
+folder `photographs/trips/berlin2023/prints/8x10/`.
+
+
+**An example folder**
 
 ```
 photographs/
-	alabaster/
-		proofs/
-			231125_001_alabaster_proof.tif
-			231127_007_alabaster_proof.tif
-			231201_002_alabaster_proof.tif
-			...
+	andesite/
 		masters/
-			231125_001_alabaster_master.tif
-			231127_007_alabaster_master.tif
-			231201_002_alabaster_master.tif
-			...
-		web/
-			231125_001_alabaster_web.jpg
-			231127_007_alabaster_web.jpg
-			231201_002_alabaster_web.jpg
-			...
-	basalt/
-		raws/
-			241001_010_basalt_raw.RAF	
-			241001_011_basalt_raw.RAF	
-			241001_012_basalt_raw.RAF	
-			...
-		8x10prints/
-			241001_010_basalt_8x10print.RAF	
-			241001_011_basalt_8x10print.RAF	
-			241001_012_basalt_8x10print.RAF	
-			...
+			231125-001_andesite_master.tif
+			231125-002_andesite_master.tif
+			231125-003_andesite_master.tif
+		prints/
+			231125-001_andesite_print.tif
+			231125-002_andesite_print.tif
+			231125-003_andesite_print.tif
+	assignments/
+		basalt/
+			workprints/
+				250402-001_assignment-basalt_workprint.jpg
+				250402-002_assignment-basalt_workprint.jpg
+				250402-003_assignment-basalt_workprint.jpg
+			finals/
+				250402-001_assignment-basalt_final.jpg
+				250402-002_assignment-basalt_final.jpg
+				250402-003_assignment-basalt_final.jpg
+	trips/
+		chalk/
+			masters/
+				260331-001_assignment-chalk_master.tif
+				260331-002_assignment-chalk_master.tif
+				260331-003_assignment-chalk_master.tif
+			prints/
+				8x10s/
+					271102-001_assignment-chalk_print-8x10.tif
+					271102-002_assignment-chalk_print-8x10.tif
+					271102-003_assignment-chalk_print-8x10.tif
+				16x20s/
+					271102-001_assignment-chalk_print-16x20.tif
+					271102-002_assignment-chalk_print-16x20.tif
+					271102-003_assignment-chalk_print-16x20.tif
 ```
+
+Note that every image must have a group, but that the group does not need to be in a class. Also
+note that files must have a version, but not always a subversion.
 
 **Why is Loupe gnostic?**
 
-Loupe offers only one way of organizing photographs - by project and then image version. The first
-reason for this is because I believe offering "sane defaults" is a lot more helpful than offering
-a host of complex, configurable ways of organizing files. I do not want Loupe to trigger analysis
-paralysis in it's user. I simply want it to do a few things well and get the hell out of the way
-when it's not in use.
+Loupe offers only one way of organizing photographs - by group and version. The first reason for
+this is because offering "sane defaults" is a lot more helpful than offering a host of complex,
+configurable ways of organizing files. I do not want Loupe to trigger analysis paralysis in it's
+user. I simply want it to do a few things well and get the hell out of the way when it's not in
+use.
 
 Second, I did want Loupe to use external files to work. My biggest problem with software like Adobe
 Lightroom is the need to launch a bloated piece of software to simply browse your pictures in the
