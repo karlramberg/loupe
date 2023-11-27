@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 )
 
 // type Photograph struct {
@@ -36,20 +37,7 @@ import (
 // 	return ""
 // }
 
-// var folder string = "."
-
-func changeFolder(input *[]string) {
-	if len(*input) == 2 {
-		if _, err := os.Stat((*input)[1]); !os.IsNotExist(err) {
-			wd, _ := os.Getwd()
-			os.Chdir(filepath.Join(wd, (*input)[1]))
-		} else {
-			fmt.Printf("Folder does not exist\n")
-		}
-	} else {
-		fmt.Printf("Provide the name of a folder\n")
-	}
-}
+const listCols int = 4
 
 var clear func()
 
@@ -84,10 +72,11 @@ func main() {
 
 	quit := false
 	for !quit {
-
-		// fmt.Printf("%s", folder) // TODO print folder name
+		// Every command (if not told otherwise) works on the current directory
 		folder, _ := os.Getwd()
-		fmt.Printf("%s", filepath.Base(folder))
+
+		// Print the prompt
+		fmt.Printf("\nWorking in: %s/\n", filepath.Base(folder))
 		fmt.Printf("> ")
 		scanner.Scan()
 
@@ -98,40 +87,99 @@ func main() {
 
 		input := strings.Split(scanner.Text(), " ")
 
+		start := time.Now() // DEBUG
+
 		switch input[0] {
 		case "audit":
 			fmt.Printf(" Command not implemented yet\n")
 		case "rename":
 			fmt.Printf(" Command not implemented yet\n")
-		case "resize":
-			fmt.Printf(" Command not implemented yet\n")
 		case "sort":
 			fmt.Printf(" Command not implemented yet\n")
+
+		/*
+			import <external folder> <base folder>
+			* <base folder>, when not specified it imports them into the working directory
+		*/
 		case "import":
+			// I think this will essentially move files into the base directory and call sort
 			fmt.Printf(" Command not implemented yet\n")
-		case "list":
+
+		/*
+			list <folder>
+			* <folder> argument is optional
+		*/
+		case "list", "ls":
 			/*
-				TODO use columns so scrolling is minimal. You should do fancy things with getting
-				the terminal width so things aren't wrapping or shite.
+				TODO
+				1. format a nice table if there are *many* files, probably over 50? For now big
+				folders are just printed in 4 columns
+
+				2. Filter out non-photo files
 			*/
-			files, _ := os.ReadDir(folder)
-			for i, f := range files {
-				fmt.Printf(" (%d) %s\n", i, f.Name())
+
+			if len(input) <= 2 {
+
+				// Append a folder to the path if it was passed
+				if len(input) == 2 {
+					stats, err := os.Stat(input[1])
+					if !os.IsNotExist(err) && stats.IsDir() {
+						folder = filepath.Join(folder, input[1])
+					} else {
+						fmt.Printf(" \"%s\" is not an available folder\n", input[1])
+					}
+				}
+
+				files, _ := os.ReadDir(folder)
+				if len(files) != 0 {
+					var fileList string
+					for i, f := range files {
+						fileList += " [" + fmt.Sprintf("%3d", i+1) + "] " + f.Name() + "\t"
+						if i%listCols == listCols-1 {
+							fileList += "\n"
+						}
+					}
+					fmt.Print(fileList)
+				} else {
+					fmt.Printf(" Folder is empty\n")
+				}
+			} else {
+				fmt.Printf(" Too many arguments! Run \"help\"\n")
 			}
-		case "folder":
-			changeFolder(&input)
+
+		/*
+			folder <folder>
+		*/
+		case "folder", "cd":
+			if len(input) == 2 {
+				stats, err := os.Stat(input[1])
+				if !os.IsNotExist(err) && stats.IsDir() {
+					wd, _ := os.Getwd()
+					os.Chdir(filepath.Join(wd, input[1]))
+				} else {
+					fmt.Printf(" \"%s\" is not an available folder\n", input[1])
+				}
+			} else if len(input) < 2 {
+				fmt.Printf(" Provide the name of a folder\n")
+			} else {
+				fmt.Printf(" Too many arguments! Run \"help\"\n")
+			}
+
+		/*
+			help
+		*/
 		case "help":
 			// TODO add more when other commands are done and first version is finalized
 			fmt.Printf(" Available commands and their usage:\n")
-		case "quit":
+		case "quit", "exit":
 			fmt.Printf(" Quitting Loupe...\n")
 			quit = true
 		case "clear":
-			cmd := exec.Command("cmd", "/c", "cls") //Windows example, its tested
-			cmd.Stdout = os.Stdout
-			cmd.Run()
+			clear()
 		default:
 			fmt.Printf(" Command not recognized, run \"help\"\n")
 		}
+
+		fmt.Println(time.Since(start)) // DEBUG
 	}
 }
