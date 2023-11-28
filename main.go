@@ -70,9 +70,8 @@ func getSelections(input string, maxLength int) ([]int, error) {
 			selection = append(selection, makeRange(start, end)...)
 		}
 	}
-	selection = removeExtrema(selection, 1, maxLength)
-	selection = removeDuplicates(selection)
-	slices.Sort(selection)
+
+	selection = cleanSelection(selection, 1, maxLength)
 
 	if len(selection) == 0 {
 		return nil, errors.New("you somehow selected no actual images")
@@ -97,25 +96,19 @@ func makeRange(start int, end int) []int {
 	return r
 }
 
-func removeExtrema(dirty []int, min, max int) []int {
-	var clean []int
-	for _, num := range dirty {
-		if num >= min && num <= max {
-			clean = append(clean, num)
-		}
-	}
-	return clean
-}
-
-func removeDuplicates(dirty []int) []int {
+// Removes duplicate indices, extreme indices, and sorts the slice
+func cleanSelection(dirty []int, min, max int) []int {
 	var clean []int
 	seen := make(map[int]bool)
 	for _, num := range dirty {
 		if !seen[num] {
 			seen[num] = true
-			clean = append(clean, num)
+			if num >= min && num <= max {
+				clean = append(clean, num)
+			}
 		}
 	}
+	slices.Sort(clean)
 	return clean
 }
 
