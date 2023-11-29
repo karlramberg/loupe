@@ -26,13 +26,11 @@ a convienient way of changing small parts of a filename without janky string man
 time. Its two methods, filename() and init() provide this construction and deconstruction.
 */
 type Photograph struct {
-	date   string
-	letter string
-	number string
-
-	class string
-	group string
-
+	date       string
+	letter     string
+	number     string
+	class      string
+	group      string
 	version    string
 	subversion string
 }
@@ -256,7 +254,6 @@ var monthLengths = []int{31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}
 /*
 Prompts for a valid date to go with the photoraph's number or letter/number combo.
 Together they form the unique indentifier for each photograph.
-TODO maybe add a format string option here, for now it checks for YYMMDD
 */
 func promptDate(scanner *bufio.Scanner) (date string, err error) {
 	input := ""
@@ -270,18 +267,18 @@ func promptDate(scanner *bufio.Scanner) (date string, err error) {
 		return
 	}
 
-	if len(input) != 6 {
-		err = errors.New("invalid date. Use format YYMMDD")
+	if len(input) != 8 {
+		err = errors.New("invalid date. Use format YYYYMMDD")
 		return
 	}
 
 	// Check that all three parts are two digit integers
-	_, err1 := strconv.Atoi(input[0:2])
-	month, err2 := strconv.Atoi(input[2:4])
-	day, err3 := strconv.Atoi(input[4:6])
+	year, err1 := strconv.Atoi(input[0:4])
+	month, err2 := strconv.Atoi(input[4:6])
+	day, err3 := strconv.Atoi(input[6:8])
 	err = errors.Join(err1, err2, err3)
 	if err != nil {
-		err = errors.New("invalid date. Use format YYMMDD")
+		err = errors.New("invalid date. Use format YYYYMMDD")
 		return
 	}
 
@@ -292,8 +289,15 @@ func promptDate(scanner *bufio.Scanner) (date string, err error) {
 	}
 
 	// Check if the day is valid given the month
-	if day < 1 || day > monthLengths[month-1] {
-		err = errors.New("invalid day. Check how many days the month has")
+	if month != 2 {
+		if day < 1 || day > monthLengths[month-1] {
+			err = errors.New("invalid day. Check how many days the month has")
+		}
+	} else {
+		leapYear := (year%4 == 0) && (!(year%100 == 0) || (year%400 == 0))
+		if day == 29 && !leapYear {
+			err = errors.New("invalid day. February only has 28 days that year")
+		}
 	}
 
 	date = input
@@ -500,7 +504,7 @@ func main() {
 				newpath, err2 := filepath.Abs(files[s-1])
 				err = errors.Join(err1, err2)
 				if err != nil {
-					fmt.Println("> Error: something went wrong finding final file paths")
+					fmt.Println("Error: something went wrong finding final file paths")
 					fmt.Println(err)
 				}
 
@@ -509,7 +513,7 @@ func main() {
 
 				err = os.Rename(oldpath, newpath)
 				if err != nil {
-					fmt.Println("> Error: there was a problem renaming", files[s-1])
+					fmt.Println("Error: there was a problem renaming", files[s-1])
 					fmt.Println(err)
 				} else {
 					fmt.Println("Renamed", filepath.Base(oldpath), "to", filepath.Base(newpath))
