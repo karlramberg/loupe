@@ -69,8 +69,8 @@ func (p *Photograph) filename() (name string) {
 
 var imageExts = []string{".raf", ".nef", ".jpg", ".jpeg", ".tif", ".tiff", ".mov"}
 
+// Walk through the directory and it's subdirectories, creating one flat list of images
 func getWorkingFiles(dir *string) (names []string, err error) {
-	// Walk through the directory and it's subdirectories, creating one flat list of image files
 	err = filepath.WalkDir(*dir, func(path string, d fs.DirEntry, err error) error {
 		ext := strings.ToLower(filepath.Ext(path))
 		if slices.Contains(imageExts, ext) {
@@ -83,6 +83,81 @@ func getWorkingFiles(dir *string) (names []string, err error) {
 	}
 
 	return
+}
+
+// Creates a nice table for printing the contents of a file
+func getFileTable(files []string) (table string) {
+
+	maxLength := 0
+	for _, f := range files {
+		if len(f) > 0 {
+			maxLength = len(f)
+		}
+	}
+
+	for i, f := range files {
+		table += fmt.Sprintf(" %3d. %-*s", i+1, maxLength+1, f)
+		if i%2 == 1 {
+			table += "\n"
+		}
+	}
+	return
+}
+
+/*
+A helper function to prompt the user for an input. This function should never be called alone as it
+does not data validation on it's own, it simply returns the typed string or a provided default value
+if only a newline was entered.
+*/
+func promptInput(scanner *bufio.Scanner, prompt, defaultInput string) (string, error) {
+	fmt.Printf("%s (default: %s) ~ ", prompt, defaultInput)
+
+	scanner.Scan()
+
+	if err := scanner.Err(); err != nil {
+		return "", errors.New("something failed while scanning for input")
+	}
+
+	if scanner.Text() == "" {
+		return defaultInput, nil
+	}
+	return scanner.Text(), nil
+}
+
+// Returns a slice of ints from start to end in ascending order
+func makeRange(start int, end int) []int {
+	if start == end {
+		return []int{start}
+	}
+
+	if start > end {
+		start, end = end, start
+	}
+
+	r := make([]int, (end-start)+1)
+	for i := range r {
+		r[i] = i + start
+	}
+	return r
+}
+
+/*
+A helper function for parsing a selection expression. This function removes duplicate indices,
+indices outside min or max, and sorts the slice in ascending order
+*/
+func cleanSelection(dirty []int, min, max int) []int {
+	clean := []int{}
+	seen := make(map[int]bool)
+	for _, num := range dirty {
+		if !seen[num] {
+			seen[num] = true
+			if num >= min && num <= max {
+				clean = append(clean, num)
+			}
+		}
+	}
+	slices.Sort(clean)
+	return clean
 }
 
 func promptSelection(scanner *bufio.Scanner, maxLength int) ([]int, error) {
@@ -128,42 +203,6 @@ func promptSelection(scanner *bufio.Scanner, maxLength int) ([]int, error) {
 	}
 
 	return selection, nil
-}
-
-// Returns a slice of ints from start to end in ascending order
-func makeRange(start int, end int) []int {
-	if start == end {
-		return []int{start}
-	}
-
-	if start > end {
-		start, end = end, start
-	}
-
-	r := make([]int, (end-start)+1)
-	for i := range r {
-		r[i] = i + start
-	}
-	return r
-}
-
-/*
-A helper function for parsing a selection expression. This function removes duplicate indices,
-indices outside min or max, and sorts the slice in ascending order
-*/
-func cleanSelection(dirty []int, min, max int) []int {
-	clean := []int{}
-	seen := make(map[int]bool)
-	for _, num := range dirty {
-		if !seen[num] {
-			seen[num] = true
-			if num >= min && num <= max {
-				clean = append(clean, num)
-			}
-		}
-	}
-	slices.Sort(clean)
-	return clean
 }
 
 /*
@@ -280,6 +319,9 @@ func promptWord(scanner *bufio.Scanner, prompt, defaultWord string) (word string
 	return
 }
 
+/*
+Prompts the user for a basic confirmation. Return true if the first character entered was a y, otherwise return false
+*/
 func promptConfimation(scanner *bufio.Scanner) (okay bool, err error) {
 	input := ""
 	input, err = promptInput(scanner, "Do these changes look okay?", "no")
@@ -294,29 +336,11 @@ func promptConfimation(scanner *bufio.Scanner) (okay bool, err error) {
 	return
 }
 
-/*
-A helper function to prompt the user for an input. This function should never be called alone as it
-does not data validation on it's own, it simply returns the typed string or a provided default value
-if only a newline was entered.
-*/
-func promptInput(scanner *bufio.Scanner, prompt, defaultInput string) (string, error) {
-	fmt.Printf("%s (default: %s)> ", prompt, defaultInput)
-
-	scanner.Scan()
-
-	if err := scanner.Err(); err != nil {
-		return "", errors.New("something failed while scanning for input")
-	}
-
-	if scanner.Text() == "" {
-		return defaultInput, nil
-	}
-	return scanner.Text(), nil
-}
-
 func main() {
 	renameCmd := flag.NewFlagSet("rename", flag.ExitOnError)
 	renameDir := renameCmd.String("w", ".", "Working directory")
+
+	fmt.Print("Loupe v0.1.0")
 
 	if len(os.Args) < 2 {
 		fmt.Println("Error: no subcommand provided")
@@ -331,6 +355,7 @@ func main() {
 		the refactor command
 	*/
 	case "name":
+		fmt.Println(" - Name")
 		renameCmd.Parse(os.Args[2:])
 
 		stat, err := os.Stat(*renameDir)
@@ -350,10 +375,7 @@ func main() {
 			return
 		}
 
-		output := ""
-		for i, f := range files {
-			output += "[" + fmt.Sprintf("%d", i+1) + "] " + f + "\n"
-		}
+		output := getFileTable(files)
 		fmt.Print(output, "\n")
 
 		scanner := bufio.NewScanner(os.Stdin)
@@ -363,7 +385,7 @@ func main() {
 			fmt.Println("Error:", err)
 			selections, err = promptSelection(scanner, len(files))
 		}
-		fmt.Println(selections)
+		// fmt.Println(selections) // DEBUG
 
 		template := Photograph{}
 
@@ -403,7 +425,7 @@ func main() {
 			template.subversion, err = promptWord(scanner, "Enter subversion", "none")
 		}
 
-		fmt.Println(template.filename()) // DEBUG
+		// fmt.Println(template.filename()) // DEBUG
 
 		dateCounter := make(map[string]int)
 		newFilenames := []string{}
@@ -459,9 +481,11 @@ func main() {
 			newFilenames = append(newFilenames, filename)
 		}
 
+		output = ""
 		for i, s := range selections {
-			fmt.Println("Renaming", files[s-1], "to", newFilenames[i])
+			output += "Renaming " + files[s-1] + " to " + newFilenames[i] + "\n"
 		}
+		fmt.Print(output)
 
 		okay, err := promptConfimation(scanner)
 		if err != nil {
@@ -476,7 +500,7 @@ func main() {
 				newpath, err2 := filepath.Abs(files[s-1])
 				err = errors.Join(err1, err2)
 				if err != nil {
-					fmt.Println("Error: something went wrong finding final file paths")
+					fmt.Println("> Error: something went wrong finding final file paths")
 					fmt.Println(err)
 				}
 
@@ -485,10 +509,10 @@ func main() {
 
 				err = os.Rename(oldpath, newpath)
 				if err != nil {
-					fmt.Println("Error: there was a problem renaming", files[s-1])
+					fmt.Println("> Error: there was a problem renaming", files[s-1])
 					fmt.Println(err)
 				} else {
-					fmt.Println("Renamed", oldpath, "to", newpath)
+					fmt.Println("Renamed", filepath.Base(oldpath), "to", filepath.Base(newpath))
 				}
 			}
 
