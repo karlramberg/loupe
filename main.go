@@ -20,13 +20,58 @@ import (
 	"strings"
 )
 
-var imageExts = []string{".raf", ".nef", ".jpg", ".tif", ".mov"}
+/*
+A Photograph is a group of strings that is formed into or from a filename. Essentially this type is
+a convienient way of changing small parts of a filename without janky string manipulatione every
+time. Its two methods, filename() and init() provide this construction and deconstruction.
+*/
+type Photograph struct {
+	date   string
+	letter string
+	number string
 
-func getWorkingFiles(dir *string) ([]string, error) {
-	var names []string
+	class string
+	group string
 
+	version    string
+	subversion string
+}
+
+func (p *Photograph) filename() (name string) {
+	// Identifier
+	name += p.date
+	name += "-"
+	if p.letter != "none" {
+		name += p.letter
+	}
+	name += p.number
+
+	name += "_"
+
+	// Group
+	if p.class != "none" {
+		name += p.class + "-"
+	}
+	name += p.group
+
+	name += "_"
+
+	// Version
+	name += p.version
+	if p.subversion != "none" {
+		name += "-" + p.subversion
+	}
+
+	return
+}
+
+// func (p *Photograph) init(filename string) {}
+
+var imageExts = []string{".raf", ".nef", ".jpg", ".jpeg", ".tif", ".tiff", ".mov"}
+
+func getWorkingFiles(dir *string) (names []string, err error) {
 	// Walk through the directory and it's subdirectories, creating one flat list of image files
-	err := filepath.WalkDir(*dir, func(path string, d fs.DirEntry, err error) error {
+	err = filepath.WalkDir(*dir, func(path string, d fs.DirEntry, err error) error {
 		ext := strings.ToLower(filepath.Ext(path))
 		if slices.Contains(imageExts, ext) {
 			names = append(names, path)
@@ -34,13 +79,17 @@ func getWorkingFiles(dir *string) ([]string, error) {
 		return nil
 	})
 	if err != nil {
-		return nil, err
+		return nil, errors.New("there was trouble reading files from the directory")
 	}
 
-	return names, nil
+	return
 }
 
-func getSelections(input string, maxLength int) ([]int, error) {
+func promptSelection(scanner *bufio.Scanner, maxLength int) ([]int, error) {
+	input, err := promptInput(scanner, "Select files", "all")
+	if err != nil {
+		return nil, errors.New("something failed while scanning for input")
+	}
 
 	if input == "all" {
 		return makeRange(1, maxLength), nil
@@ -53,11 +102,12 @@ func getSelections(input string, maxLength int) ([]int, error) {
 	*/
 	valid, err := regexp.MatchString("^(([0-9]+([-][0-9]+)?)([,]([0-9]+([-][0-9]+)?))*)$", input)
 	if !valid || err != nil {
-		return nil, errors.New("invaild selection phrase")
+		return nil, errors.New("invaild selection expression")
 	}
 
-	// Build a selection slice of indices based on the validated pharse
-	var selection []int
+	// Build a slice of indices based on the validated expression
+	// Atoi() errors can be ignored because we filtered through a regex earlier. Sue me.
+	selection := []int{}
 	tokens := strings.Split(input, ",")
 	for _, token := range tokens {
 		digits := strings.Split(token, "-")
@@ -80,6 +130,7 @@ func getSelections(input string, maxLength int) ([]int, error) {
 	return selection, nil
 }
 
+// Returns a slice of ints from start to end in ascending order
 func makeRange(start int, end int) []int {
 	if start == end {
 		return []int{start}
@@ -96,9 +147,12 @@ func makeRange(start int, end int) []int {
 	return r
 }
 
-// Removes duplicate indices, extreme indices, and sorts the slice
+/*
+A helper function for parsing a selection expression. This function removes duplicate indices,
+indices outside min or max, and sorts the slice in ascending order
+*/
 func cleanSelection(dirty []int, min, max int) []int {
-	var clean []int
+	clean := []int{}
 	seen := make(map[int]bool)
 	for _, num := range dirty {
 		if !seen[num] {
@@ -112,19 +166,152 @@ func cleanSelection(dirty []int, min, max int) []int {
 	return clean
 }
 
-func getInput(scanner *bufio.Scanner, prompt string, defaultInput string) string {
-	fmt.Printf("\n%s (default: %s)\n>", prompt, defaultInput)
+/*
+Prompts for a number or a letter/number combo to go with the photograph's date. Together they form
+the unique indentifier for each photograph.
+*/
+func promptNumber(scanner *bufio.Scanner) (letter, number string, err error) {
+	input := ""
+
+	input, err = promptInput(scanner, "Enter roll letter", "none")
+	if err != nil {
+		return
+	}
+	padding := 3
+	if input != "none" {
+		padding = 2
+
+		// Check that the given letter is only capital letters
+		input = strings.ToUpper(input)
+		valid := false
+		valid, err = regexp.MatchString("^([A-Z]+)$", input)
+		if !valid || err != nil {
+			err = errors.New("invalid roll letter. Only use alphabetic characters")
+			return
+		}
+	}
+	letter = input
+
+	// Grab input for the starting number
+	input, err = promptInput(scanner, "Enter start number", "1")
+	if err != nil {
+		return
+	}
+
+	// Check that the number is only digits
+	valid := false
+	valid, err = regexp.MatchString("^([0-9]+)$", input)
+	if !valid || err != nil {
+		err = errors.New("invalid start number. Only use a whole number")
+		return
+	}
+
+	// %0*s pads input with 0s so the has length of pad
+	number = fmt.Sprintf("%0*s", padding, input)
+
+	return
+}
+
+var monthLengths = []int{31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}
+
+/*
+Prompts for a valid date to go with the photoraph's number or letter/number combo.
+Together they form the unique indentifier for each photograph.
+TODO maybe add a format string option here, for now it checks for YYMMDD
+*/
+func promptDate(scanner *bufio.Scanner) (date string, err error) {
+	input := ""
+	input, err = promptInput(scanner, "Enter date", "auto")
+	if err != nil {
+		return
+	}
+
+	if input == "auto" {
+		date = "auto"
+		return
+	}
+
+	if len(input) != 6 {
+		err = errors.New("invalid date. Use format YYMMDD")
+		return
+	}
+
+	// Check that all three parts are two digit integers
+	_, err1 := strconv.Atoi(input[0:2])
+	month, err2 := strconv.Atoi(input[2:4])
+	day, err3 := strconv.Atoi(input[4:6])
+	err = errors.Join(err1, err2, err3)
+	if err != nil {
+		err = errors.New("invalid date. Use format YYMMDD")
+		return
+	}
+
+	// Check if the month is valid
+	if month < 1 || month > 12 {
+		err = errors.New("month need to be between 01-12")
+		return
+	}
+
+	// Check if the day is valid given the month
+	if day < 1 || day > monthLengths[month-1] {
+		err = errors.New("invalid day. Check how many days the month has")
+	}
+
+	date = input
+	return
+}
+
+/*
+Prompts the user for a single lowercase alphanumeric word
+This word can be used in a class, group, version or subversion
+*/
+func promptWord(scanner *bufio.Scanner, prompt, defaultWord string) (word string, err error) {
+	word, err = promptInput(scanner, prompt, defaultWord)
+	if err != nil {
+		return "", err
+	}
+
+	word = strings.ToLower(word)
+	valid, err := regexp.MatchString("^([a-z0-9]+)$", word)
+	if !valid || err != nil {
+		return "", errors.New("invalid input. Only use a single lowercase word")
+	}
+
+	return
+}
+
+func promptConfimation(scanner *bufio.Scanner) (okay bool, err error) {
+	input := ""
+	input, err = promptInput(scanner, "Do these changes look okay?", "no")
+	if err != nil {
+		return
+	}
+
+	if strings.ToLower(input)[0] == 'y' {
+		okay = true
+	}
+
+	return
+}
+
+/*
+A helper function to prompt the user for an input. This function should never be called alone as it
+does not data validation on it's own, it simply returns the typed string or a provided default value
+if only a newline was entered.
+*/
+func promptInput(scanner *bufio.Scanner, prompt, defaultInput string) (string, error) {
+	fmt.Printf("%s (default: %s)> ", prompt, defaultInput)
 
 	scanner.Scan()
 
 	if err := scanner.Err(); err != nil {
-		fmt.Printf("Error while scanning! %s", err)
+		return "", errors.New("something failed while scanning for input")
 	}
 
 	if scanner.Text() == "" {
-		return defaultInput
+		return defaultInput, nil
 	}
-	return scanner.Text()
+	return scanner.Text(), nil
 }
 
 func main() {
@@ -137,7 +324,13 @@ func main() {
 	}
 
 	switch os.Args[1] {
-	case "rename":
+
+	/*
+		name creates filenames in Loupe's gnostic style from scratch. It ignores any filename the
+		files had previously. To rename individual parts of files that already use the style, use
+		the refactor command
+	*/
+	case "name":
 		renameCmd.Parse(os.Args[2:])
 
 		stat, err := os.Stat(*renameDir)
@@ -148,65 +341,160 @@ func main() {
 
 		files, err := getWorkingFiles(renameDir)
 		if err != nil {
-			fmt.Println("Error: there was trouble reading files from the directory")
-			fmt.Println(err)
+			fmt.Println("Error:", err)
 			return
 		}
 
 		if len(files) == 0 {
-			fmt.Println("Error: no image files found in working directory")
+			fmt.Println("No image files found in working directory")
 			return
 		}
 
-		var output string
+		output := ""
 		for i, f := range files {
 			output += "[" + fmt.Sprintf("%d", i+1) + "] " + f + "\n"
 		}
-		fmt.Print(output)
+		fmt.Print(output, "\n")
 
-		s := bufio.NewScanner(os.Stdin)
+		scanner := bufio.NewScanner(os.Stdin)
 
-		input := getInput(s, "Select files", "all")
-		selections, err := getSelections(input, len(files))
+		selections, err := promptSelection(scanner, len(files))
 		for err != nil {
 			fmt.Println("Error:", err)
-
-			input = getInput(s, "Select files", "all")
-			selections, err = getSelections(input, len(files))
+			selections, err = promptSelection(scanner, len(files))
 		}
 		fmt.Println(selections)
 
-		preview := getInput(s, "Enter date", "auto")
-		preview += "-"
+		template := Photograph{}
 
-		letter := getInput(s, "Enter roll letter", "none")
-
-		padding := 3
-		if letter != "none" {
-			preview += letter
-			padding = 2
-		}
-		preview += fmt.Sprintf("%0*s", padding, getInput(s, "Enter start number", "1"))
-
-		preview += "_"
-
-		class := getInput(s, "Enter class", "none")
-		if class != "none" {
-			preview += class + "-"
+		template.date, err = promptDate(scanner)
+		for err != nil {
+			fmt.Println("Error:", err)
+			template.date, err = promptDate(scanner)
 		}
 
-		preview += getInput(s, "Enter group", "default")
-
-		preview += "_"
-
-		preview += getInput(s, "Enter version", "lolidk")
-
-		subversion := getInput(s, "Enter subversion", "none")
-		if subversion != "none" {
-			preview += "-" + subversion
+		template.letter, template.number, err = promptNumber(scanner)
+		for err != nil {
+			fmt.Println("Error:", err)
+			template.letter, template.number, err = promptNumber(scanner)
 		}
 
-		fmt.Println(preview)
+		template.class, err = promptWord(scanner, "Enter class", "none")
+		for err != nil {
+			fmt.Println("Error:", err)
+			template.class, err = promptWord(scanner, "Enter class", "none")
+		}
+
+		template.group, err = promptWord(scanner, "Enter group", "default")
+		for err != nil {
+			fmt.Println("Error:", err)
+			template.group, err = promptWord(scanner, "Enter group", "default")
+		}
+
+		template.version, err = promptWord(scanner, "Enter version", "lolidk")
+		for err != nil {
+			fmt.Println("Error:", err)
+			template.version, err = promptWord(scanner, "Enter version", "lolidk")
+		}
+
+		template.subversion, err = promptWord(scanner, "Enter subversion", "none")
+		for err != nil {
+			fmt.Println("Error:", err)
+			template.subversion, err = promptWord(scanner, "Enter subversion", "none")
+		}
+
+		fmt.Println(template.filename()) // DEBUG
+
+		dateCounter := make(map[string]int)
+		newFilenames := []string{}
+		for _, s := range selections {
+			photograph := template
+
+			/*
+				NOTE: Auto dating is only useful for digital raw files. Raw files should never be
+				modified after they are created, so using their mod time to date them is fine.
+				Getting an actual creation time for a file on every operating system is stupidly
+				inconsistent, so it's not used here. It would only provide information for digital
+				raw files anyway, so it's not a huge loss. Any file that isn't a raw file (e.g.
+				negative scan or edited tif or exported jpg) will have both a creation and
+				modification date *after* the day the photograph was captured.
+
+				TODO: Require the user to enter a date manually if there are any files in the
+				selection that are not raw. Do this when getting input, not here. I just thought
+				this place was most appropriate for this TODO.
+			*/
+			if photograph.date == "auto" {
+				fileinfo, err := os.Stat(files[s-1])
+				if err != nil {
+					fmt.Println("Error: there was as problem getting an auto date for", files[s])
+					fmt.Println(err)
+				}
+
+				time := fileinfo.ModTime()
+				date := strconv.Itoa(time.Year())[2:4]
+				date += fmt.Sprintf("%02s", strconv.Itoa(int(time.Month())))
+				date += fmt.Sprintf("%02s", strconv.Itoa(time.Day()))
+
+				photograph.date = date
+			}
+
+			number := strconv.Itoa(dateCounter[photograph.date] + 1)
+			padding := 3
+			if photograph.letter != "none" {
+				padding = 2
+			}
+			photograph.number = fmt.Sprintf("%0*s", padding, number)
+			dateCounter[photograph.date] += 1
+
+			filename := photograph.filename()
+
+			ext := filepath.Ext(files[s-1])
+			if ext == ".jpeg" {
+				ext = ".jpg"
+			} else if ext == ".tiff" {
+				ext = ".tif"
+			}
+			filename += strings.ToLower(ext)
+
+			newFilenames = append(newFilenames, filename)
+		}
+
+		for i, s := range selections {
+			fmt.Println("Renaming", files[s-1], "to", newFilenames[i])
+		}
+
+		okay, err := promptConfimation(scanner)
+		if err != nil {
+			fmt.Println("Error: ", err)
+		}
+
+		if okay {
+			fmt.Println("Okay!")
+
+			for i, s := range selections {
+				oldpath, err1 := filepath.Abs(files[s-1])
+				newpath, err2 := filepath.Abs(files[s-1])
+				err = errors.Join(err1, err2)
+				if err != nil {
+					fmt.Println("Error: something went wrong finding final file paths")
+					fmt.Println(err)
+				}
+
+				newpath = filepath.Dir(newpath)
+				newpath = filepath.Join(newpath, newFilenames[i])
+
+				err = os.Rename(oldpath, newpath)
+				if err != nil {
+					fmt.Println("Error: there was a problem renaming", files[s-1])
+					fmt.Println(err)
+				} else {
+					fmt.Println("Renamed", oldpath, "to", newpath)
+				}
+			}
+
+		} else {
+			fmt.Println("Abort! Abort! Abort!")
+		}
 
 	default:
 		fmt.Printf("Error: command \"%s\" not found\n", os.Args[1])
