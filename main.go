@@ -341,8 +341,8 @@ func promptConfimation(scanner *bufio.Scanner) (okay bool, err error) {
 }
 
 func main() {
-	renameCmd := flag.NewFlagSet("rename", flag.ExitOnError)
-	renameDir := renameCmd.String("w", ".", "Working directory")
+	nameCmd := flag.NewFlagSet("rename", flag.ExitOnError)
+	nameDir := nameCmd.String("w", "", "Working directory")
 
 	fmt.Print("Loupe v0.1.0")
 
@@ -360,15 +360,20 @@ func main() {
 	*/
 	case "name":
 		fmt.Println(" - Name")
-		renameCmd.Parse(os.Args[2:])
+		nameCmd.Parse(os.Args[2:])
 
-		stat, err := os.Stat(*renameDir)
+		if *nameDir == "" {
+			fmt.Println("Provide a working directory using the -w flag")
+			return
+		}
+
+		stat, err := os.Stat(*nameDir)
 		if os.IsNotExist(err) || !stat.IsDir() {
 			fmt.Println("Error: invalid working directory")
 			return
 		}
 
-		files, err := getWorkingFiles(renameDir)
+		files, err := getWorkingFiles(nameDir)
 		if err != nil {
 			fmt.Println("Error:", err)
 			return
@@ -519,7 +524,6 @@ func main() {
 					fmt.Println("Renamed", filepath.Base(oldpath), "to", filepath.Base(newpath))
 				}
 			}
-
 		} else {
 			fmt.Println("Abort! Abort! Abort!")
 		}
