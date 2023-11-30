@@ -68,7 +68,87 @@ func (p *Photograph) filename() (name string) {
 	return
 }
 
-// func (p *Photograph) init(filename string) {}
+// Init attempts to create a photograph from the given filename and returns an error if it couldn't
+func (p *Photograph) init(name string) error {
+	name = strings.TrimSuffix(name, filepath.Ext(name))
+
+	tokens := strings.Split(name, "_")
+	if len(tokens) != 3 {
+		return errors.New("filname invalid. Use format identifier_group_version")
+	}
+
+	// Identifier
+	indentifier := strings.Split(tokens[0], "-")
+	if len(indentifier) != 2 {
+		return errors.New("filename invalid. Use format date-number for the identifier")
+	}
+
+	// Date
+	validDate, err := validDate(indentifier[0])
+	if !validDate {
+		return err
+	}
+	p.date = indentifier[0]
+
+	// Number
+	validNumber, err := regexp.MatchString("^([A-Z]*[0-9]+)$", indentifier[1])
+	if !validNumber || err != nil {
+		return errors.New("filname invalid. Number should only capital letters and numbers")
+	}
+	p.number = indentifier[1]
+
+	// Groups
+	groups := strings.Split(tokens[1], "-")
+
+	if len(groups) > 2 {
+		return errors.New("filname invalid. Use format class-group or just group")
+	}
+
+	if len(groups) == 2 { // Class and group
+		validClass, err1 := validWord(groups[0])
+		validGroup, err2 := validWord(groups[1])
+		err = errors.Join(err1, err2)
+		if !validClass || !validGroup || err != nil {
+			return errors.New("filename invalid. User format class-group or just group")
+		}
+		p.class = groups[0]
+		p.group = groups[1]
+	} else { // Just group
+		validGroup, err := validWord(groups[0])
+		if !validGroup || err != nil {
+			return errors.New("filename invalid. Group can only contain alphanumeric characters")
+		}
+		p.class = "none"
+		p.group = groups[0]
+	}
+
+	// Versions
+	versions := strings.Split(tokens[2], "-")
+
+	if len(versions) > 2 {
+		return errors.New("filname invalid. Use format version-subversion or just version")
+	}
+
+	if len(versions) == 2 { // Version and subversion
+		validVersion, err1 := validWord(versions[0])
+		validSubversion, err2 := validWord(versions[1])
+		err = errors.Join(err1, err2)
+		if !validVersion || !validSubversion || err != nil {
+			return errors.New("filename invalid. User format version-subversion or just version")
+		}
+		p.version = versions[0]
+		p.subversion = versions[1]
+	} else { // Just  version
+		validVersion, err := validWord(versions[0])
+		if !validVersion || err != nil {
+			return errors.New("filename invalid. Use format version-subversion or just version")
+		}
+		p.version = groups[0]
+		p.subversion = "none"
+	}
+
+	return nil
+}
 
 /*
 This is probably an incomplete list. These were all gotten off a basic list on the Wikipedia articles for Image file formats and Raw files.
@@ -77,13 +157,22 @@ var rawExts = []string{".3fr", ".ari", ".arw", ".srf", "srf2", ".bay", ".braw", 
 
 var imageExts = []string{".jpg", ".jpeg", ".jxl", ".jp2", ".png", ".gif", ".webp", ".heic", ".heif", ".avif", ".psd", ".tif", ".tiff", ".mov", ".mp4", ".ico", ".xcf", ".bmp"}
 
-// Walk through the directory and it's subdirectories, creating one flat list of images
-func getWorkingFiles(dir *string) (names []string, err error) {
-	err = filepath.WalkDir(*dir, func(path string, d fs.DirEntry, err error) error {
+/*
+Gets a list of image files in the passed directory, recursively. Ignores any folder that starts
+with an underscore
+*/
+func getImageFiles(dir string) (names []string, err error) {
+	err = filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+
+		if d.IsDir() && d.Name()[0] == '_' {
+			return filepath.SkipDir
+		}
+
 		ext := strings.ToLower(filepath.Ext(path))
 		if slices.Contains(imageExts, ext) || slices.Contains(rawExts, ext) {
 			names = append(names, path)
 		}
+
 		return nil
 	})
 	if err != nil {
@@ -93,7 +182,7 @@ func getWorkingFiles(dir *string) (names []string, err error) {
 	return
 }
 
-// Creates a nice table for printing the contents of a file
+// Creates a nice table for printing a list of filenames
 func getFileTable(files []string) (table string) {
 
 	maxLength := 0
@@ -277,60 +366,75 @@ func promptDate(scanner *bufio.Scanner, defaultDate string) (date string, err er
 		return
 	}
 
-	if len(input) != 8 {
-		err = errors.New("invalid date. Use format YYYYMMDD")
+	valid, err := validDate(input)
+	if !valid {
 		return
-	}
-
-	// Check that all three parts are two digit integers
-	year, err1 := strconv.Atoi(input[0:4])
-	month, err2 := strconv.Atoi(input[4:6])
-	day, err3 := strconv.Atoi(input[6:8])
-	err = errors.Join(err1, err2, err3)
-	if err != nil {
-		err = errors.New("invalid date. Use format YYYYMMDD")
-		return
-	}
-
-	// Check if the month is valid
-	if month < 1 || month > 12 {
-		err = errors.New("month need to be between 01-12")
-		return
-	}
-
-	// Check if the day is valid given the month
-	if month != 2 {
-		if day < 1 || day > monthLengths[month-1] {
-			err = errors.New("invalid day. Check how many days the month has")
-		}
-	} else {
-		leapYear := (year%4 == 0) && (!(year%100 == 0) || (year%400 == 0))
-		if day == 29 && !leapYear {
-			err = errors.New("invalid day. February only has 28 days that year")
-		}
 	}
 
 	date = input
 	return
 }
 
+func validDate(date string) (bool, error) {
+	if len(date) != 8 {
+		return false, errors.New("invalid date. Use format YYYYMMDD")
+	}
+
+	// Check that all three parts are two digit integers
+	year, err1 := strconv.Atoi(date[0:4])
+	month, err2 := strconv.Atoi(date[4:6])
+	day, err3 := strconv.Atoi(date[6:8])
+	err := errors.Join(err1, err2, err3)
+	if err != nil {
+		return false, errors.New("invalid date. Only use digits")
+	}
+
+	// Check if the month is valid
+	if month < 1 || month > 12 {
+		return false, errors.New("invalid date. Month should be between 01 and 12")
+	}
+
+	// Check if the day is valid given the month
+	if month != 2 {
+		if day < 1 || day > monthLengths[month-1] {
+			return false, errors.New("invalid date. Check how many days are in the month")
+		}
+	} else {
+		leapYear := (year%4 == 0) && (!(year%100 == 0) || (year%400 == 0))
+		if day > 28 && !leapYear {
+			return false, errors.New("invalid date. Feburary only has 28 days that year")
+		}
+	}
+
+	return true, nil
+}
+
 /*
 Prompts the user for a single lowercase alphanumeric word
 This word can be used in a class, group, version or subversion
 */
-func promptWord(scanner *bufio.Scanner, prompt, defaultWord string) (word string, err error) {
-	word, err = promptInput(scanner, prompt, defaultWord)
+func promptWord(scanner *bufio.Scanner, prompt, defaultWord string) (string, error) {
+	word, err := promptInput(scanner, prompt, defaultWord)
 	if err != nil {
 		return "", err
 	}
 
 	word = strings.ToLower(word)
-	valid, err := regexp.MatchString("^([a-z0-9]+)$", word)
+
+	valid, err := validWord(word)
 	if !valid || err != nil {
-		return "", errors.New("invalid input. Only use a single lowercase word")
+		return "", err
 	}
 
-	return
+	return word, nil
+}
+
+func validWord(word string) (bool, error) {
+	valid, err := regexp.MatchString("^([a-z0-9]+)$", word)
+	if !valid || err != nil {
+		return false, errors.New("invalid word. Only use alphanumeric characters")
+	}
+	return true, nil
 }
 
 /*
@@ -351,8 +455,11 @@ func promptConfimation(scanner *bufio.Scanner) (okay bool, err error) {
 }
 
 func main() {
-	nameCmd := flag.NewFlagSet("rename", flag.ExitOnError)
+	nameCmd := flag.NewFlagSet("name", flag.ExitOnError)
 	nameDir := nameCmd.String("w", "", "Working directory")
+
+	sortCmd := flag.NewFlagSet("sort", flag.ExitOnError)
+	sortDir := sortCmd.String("a", "", "Archive directory")
 
 	fmt.Print("Loupe v0.1.0")
 
@@ -383,7 +490,7 @@ func main() {
 			return
 		}
 
-		files, err := getWorkingFiles(nameDir)
+		files, err := getImageFiles(*nameDir)
 		if err != nil {
 			fmt.Println("Error:", err)
 			return
@@ -462,19 +569,6 @@ func main() {
 		for _, s := range selections {
 			photograph := template
 
-			/*
-				NOTE: Auto dating is only useful for digital raw files. Raw files should never be
-				modified after they are created, so using their mod time to date them is fine.
-				Getting an actual creation time for a file on every operating system is stupidly
-				inconsistent, so it's not used here. It would only provide information for digital
-				raw files anyway, so it's not a huge loss. Any file that isn't a raw file (e.g.
-				negative scan or edited tif or exported jpg) will have both a creation and
-				modification date *after* the day the photograph was captured.
-
-				TODO: Require the user to enter a date manually if there are any files in the
-				selection that are not raw. Do this when getting input, not here. I just thought
-				this place was most appropriate for this TODO.
-			*/
 			if photograph.date == "auto" {
 				fileinfo, err := os.Stat(files[s])
 				if err != nil {
@@ -482,6 +576,12 @@ func main() {
 					fmt.Println(err)
 				}
 
+				/*
+					NOTE: Files are auto dated using their last modification time instead of a
+					creation date. This is because creation dates are inconsistent across systems
+					and auto dating is only useful for digital raw files, which should never be
+					modified after they are made anyways
+				*/
 				time := fileinfo.ModTime()
 				date := strconv.Itoa(time.Year())[2:4]
 				date += fmt.Sprintf("%02s", strconv.Itoa(int(time.Month())))
@@ -548,6 +648,51 @@ func main() {
 		} else {
 			fmt.Println("Abort! Abort! Abort!")
 		}
+
+	/*
+		Sort organizes validly named image files in an archive folder based on their class, group,
+		version, and subversion. Folders that start with _ are ignored. Invalid files and colliding
+		filenames are put into the base folder for review.
+	*/
+	case "sort":
+		fmt.Println(" - Sort")
+		sortCmd.Parse(os.Args[2:])
+
+		if *sortDir == "" {
+			fmt.Println("Provide an archive directory using the -a flag")
+			return
+		}
+
+		stat, err := os.Stat(*sortDir)
+		if os.IsNotExist(err) || !stat.IsDir() {
+			fmt.Println("Error: invalid archive directory")
+			return
+		}
+
+		files, err := getImageFiles(*sortDir)
+		if err != nil {
+			fmt.Println("Error:", err)
+		}
+
+		if len(files) == 0 {
+			fmt.Println("Error: no image files found in archive directory")
+		}
+
+		var validPhotos []Photograph
+		var invalidPhotos []Photograph
+		var p *Photograph
+		for _, f := range files {
+			p = new(Photograph)
+			err := p.init(filepath.Base(f))
+			if err != nil {
+				invalidPhotos = append(invalidPhotos, *p)
+			} else {
+				validPhotos = append(validPhotos, *p)
+			}
+		}
+
+		fmt.Println("Found", len(validPhotos), "valid photos")
+		fmt.Println("Found", len(invalidPhotos), "invalid photos")
 
 	default:
 		fmt.Printf("Error: command \"%s\" not found\n", os.Args[1])
