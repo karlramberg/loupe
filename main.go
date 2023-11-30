@@ -26,11 +26,16 @@ a convienient way of changing small parts of a filename without janky string man
 time. Its two methods, filename() and init() provide this construction and deconstruction.
 */
 type Photograph struct {
-	date       string
-	letter     string
-	number     string
-	class      string
-	group      string
+	// Identifier
+	date   string
+	letter string
+	number string
+
+	// Group
+	class string
+	group string
+
+	// Version
 	version    string
 	subversion string
 }
@@ -65,13 +70,18 @@ func (p *Photograph) filename() (name string) {
 
 // func (p *Photograph) init(filename string) {}
 
-var imageExts = []string{".raf", ".nef", ".jpg", ".jpeg", ".tif", ".tiff", ".mov"}
+/*
+This is probably an incomplete list. These were all gotten off a basic list on the Wikipedia articles for Image file formats and Raw files.
+*/
+var rawExts = []string{".3fr", ".ari", ".arw", ".srf", "srf2", ".bay", ".braw", ".crw", ".cr2", ".cr3,", ".cap", ".iiq", ".eip", ".dcs", ".dcr", ".drf", ".k25", ".kdc", ".dng", ".erf", ".fff", ".gpr", ".jxs", ".mef", ".mdc", ".mos", ".mrw", ".nef", ".nrw", ".orf", ".pef", ".ptx", ".pxn", ".r3d", ".raf", ".raw", ".rw2", ".rwl", ".rwz", ".srw", ".tco", ".x3f"}
+
+var imageExts = []string{".jpg", ".jpeg", ".jxl", ".jp2", ".png", ".gif", ".webp", ".heic", ".heif", ".avif", ".psd", ".tif", ".tiff", ".mov", ".mp4", ".ico", ".xcf", ".bmp"}
 
 // Walk through the directory and it's subdirectories, creating one flat list of images
 func getWorkingFiles(dir *string) (names []string, err error) {
 	err = filepath.WalkDir(*dir, func(path string, d fs.DirEntry, err error) error {
 		ext := strings.ToLower(filepath.Ext(path))
-		if slices.Contains(imageExts, ext) {
+		if slices.Contains(imageExts, ext) || slices.Contains(rawExts, ext) {
 			names = append(names, path)
 		}
 		return nil
@@ -158,14 +168,14 @@ func cleanSelection(dirty []int, min, max int) []int {
 	return clean
 }
 
-func promptSelection(scanner *bufio.Scanner, maxLength int) ([]int, error) {
+func promptSelection(scanner *bufio.Scanner, length int) ([]int, error) {
 	input, err := promptInput(scanner, "Select files", "all")
 	if err != nil {
 		return nil, errors.New("something failed while scanning for input")
 	}
 
 	if input == "all" {
-		return makeRange(1, maxLength), nil
+		return makeRange(0, length-1), nil
 	}
 
 	/*
@@ -186,18 +196,18 @@ func promptSelection(scanner *bufio.Scanner, maxLength int) ([]int, error) {
 		digits := strings.Split(token, "-")
 		if len(digits) == 1 {
 			index, _ := strconv.Atoi(digits[0])
-			selection = append(selection, index)
+			selection = append(selection, index-1)
 		} else if len(digits) == 2 {
 			start, _ := strconv.Atoi(digits[0])
 			end, _ := strconv.Atoi(digits[1])
-			selection = append(selection, makeRange(start, end)...)
+			selection = append(selection, makeRange(start-1, end-1)...)
 		}
 	}
 
-	selection = cleanSelection(selection, 1, maxLength)
+	selection = cleanSelection(selection, 0, length-1)
 
 	if len(selection) == 0 {
-		return nil, errors.New("you somehow selected no actual images")
+		return nil, errors.New("somehow you selected no actual images")
 	}
 
 	return selection, nil
@@ -255,9 +265,9 @@ var monthLengths = []int{31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}
 Prompts for a valid date to go with the photoraph's number or letter/number combo.
 Together they form the unique indentifier for each photograph.
 */
-func promptDate(scanner *bufio.Scanner) (date string, err error) {
+func promptDate(scanner *bufio.Scanner, defaultDate string) (date string, err error) {
 	input := ""
-	input, err = promptInput(scanner, "Enter date", "auto")
+	input, err = promptInput(scanner, "Enter date", defaultDate)
 	if err != nil {
 		return
 	}
@@ -354,7 +364,7 @@ func main() {
 	switch os.Args[1] {
 
 	/*
-		name creates filenames in Loupe's gnostic style from scratch. It ignores any filename the
+		Name creates filenames in Loupe's format from scratch. It ignores any filename the
 		files had previously. To rename individual parts of files that already use the style, use
 		the refactor command
 	*/
@@ -396,12 +406,23 @@ func main() {
 		}
 		// fmt.Println(selections) // DEBUG
 
+		// Disable autodating if non-raw files are selected
+		defaultDate := "auto"
+		for _, s := range selections {
+			ext := strings.ToLower(filepath.Ext(files[s]))
+			if !slices.Contains(rawExts, ext) {
+				defaultDate = "none"
+				fmt.Println("disabled autodating at index", s)
+				break
+			}
+		}
+
 		template := Photograph{}
 
-		template.date, err = promptDate(scanner)
+		template.date, err = promptDate(scanner, defaultDate)
 		for err != nil {
 			fmt.Println("Error:", err)
-			template.date, err = promptDate(scanner)
+			template.date, err = promptDate(scanner, defaultDate)
 		}
 
 		template.letter, template.number, err = promptNumber(scanner)
@@ -422,7 +443,7 @@ func main() {
 			template.group, err = promptWord(scanner, "Enter group", "default")
 		}
 
-		template.version, err = promptWord(scanner, "Enter version", "lolidk")
+		template.version, err = promptWord(scanner, "Enter version", "lolidk") // TODO
 		for err != nil {
 			fmt.Println("Error:", err)
 			template.version, err = promptWord(scanner, "Enter version", "lolidk")
@@ -455,7 +476,7 @@ func main() {
 				this place was most appropriate for this TODO.
 			*/
 			if photograph.date == "auto" {
-				fileinfo, err := os.Stat(files[s-1])
+				fileinfo, err := os.Stat(files[s])
 				if err != nil {
 					fmt.Println("Error: there was as problem getting an auto date for", files[s])
 					fmt.Println(err)
@@ -479,7 +500,7 @@ func main() {
 
 			filename := photograph.filename()
 
-			ext := filepath.Ext(files[s-1])
+			ext := filepath.Ext(files[s])
 			if ext == ".jpeg" {
 				ext = ".jpg"
 			} else if ext == ".tiff" {
@@ -492,7 +513,7 @@ func main() {
 
 		output = ""
 		for i, s := range selections {
-			output += "Renaming " + files[s-1] + " to " + newFilenames[i] + "\n"
+			output += "Renaming " + files[s] + " to " + newFilenames[i] + "\n"
 		}
 		fmt.Print(output)
 
@@ -505,8 +526,8 @@ func main() {
 			fmt.Println("Okay!")
 
 			for i, s := range selections {
-				oldpath, err1 := filepath.Abs(files[s-1])
-				newpath, err2 := filepath.Abs(files[s-1])
+				oldpath, err1 := filepath.Abs(files[s])
+				newpath, err2 := filepath.Abs(files[s])
 				err = errors.Join(err1, err2)
 				if err != nil {
 					fmt.Println("Error: something went wrong finding final file paths")
@@ -518,7 +539,7 @@ func main() {
 
 				err = os.Rename(oldpath, newpath)
 				if err != nil {
-					fmt.Println("Error: there was a problem renaming", files[s-1])
+					fmt.Println("Error: there was a problem renaming", files[s])
 					fmt.Println(err)
 				} else {
 					fmt.Println("Renamed", filepath.Base(oldpath), "to", filepath.Base(newpath))
