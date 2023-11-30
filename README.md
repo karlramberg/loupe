@@ -9,13 +9,13 @@ Loupe is simple set of commands you can run to organize a folder of photographs.
 
 Files use the basic format `identifier_group_version`. Each of the three parts can be further split up. The identifier always needs to be split into `date-number`. The group can optionally include a class in order to group groups (`class-group`). The version can optionally include a subversion to better organize things (`version-subversion`). Photographs are sorted into folders using the same order they are named: class, group, version and subversion. Photographs are not sorted by their date or number, instead that identifier is used to tie together different versions and subversions of an image.
 
-**Two example filenames**
+### Two example filenames
 
 `20241201-007_granite_master.tif` would be the name for the master tif file of the 7th photograph taken on December 1st, 2024, grouped into granite. It would reside in the folder `photographs/granite/masters/`.
 
 `20270630-028_trip-berlin2027_print-8x10.tif` would be the name for the print-ready file, sized to 8x10" of the 28th photograph taken on June 30th, 2027 on a trip to Berlin. It would reside in the folder `photographs/trips/berlin2023/prints/8x10/`.
 
-**An example folder**
+### An example folder
 
 ```
 photographs/
@@ -33,7 +33,7 @@ photographs/
 			workprints/
 				20250402-001_assignment-basalt_workprint.jpg
 				20250402-002_assignment-basalt_workprint.jpg
-				250402-003_assignment-basalt_workprint.jpg
+				20250402-003_assignment-basalt_workprint.jpg
 			finals/
 				20250402-001_assignment-basalt_final.jpg
 				20250402-002_assignment-basalt_final.jpg
@@ -57,11 +57,11 @@ photographs/
 
 Note that every image must have a group, but that the group does not need to be in a class. Also note that files must have a version, but not always a subversion.
 
-**Why is Loupe gnostic?**
+### Why is Loupe gnostic?
 
-Loupe offers only one way of organizing photographs - by group and version. The first reason for this is because offering "sane defaults" is a lot more helpful than offering a host of complex and configurable ways of organizing files. I do not want Loupe to trigger analysis paralysis in it's user. I simply want it to do a few things well and get the hell out of the way when it's not in use.
+Loupe offers only one way of organizing photographs - by group and version. This is because offering "sane defaults" is sometimes a lot more useful than offering a host of complex and configurable ways of organizing files. I do not want Loupe to trigger analysis paralysis in it's user. I simply want it to do a few things well and get the hell out of the way when it's not in use. I did want Loupe to use external files to work. My biggest problem with software like AdobeLightroom is the need to launch a bloated piece of software to simply browse your pictures in theway you organized them. File and folder systems will not go anywhere, will not change, and will be readable on any system.
 
-Second, I did want Loupe to use external files to work. My biggest problem with software like AdobeLightroom is the need to launch a bloated piece of software to simply browse your pictures in theway you organized them. File and folder systems will not go anywhere, will not change, and will bereadable on any system.
+For all of these reasons, Loupe offers no way of configuring anything. Date are always formatted YYYYMMDD. Numbers are always whole numbers padded to three spaces, two if its a frame on a lettered roll of film. filename dividers (always underscores and hyphens), folder structure (always class/group/version/subversion, you cannot just keep giving a photograph groups or versions to put it into deeper and deeper folders).
 
 **Why is Loupe written in Go?**
 
