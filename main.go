@@ -38,39 +38,14 @@ type Photograph struct {
 	// Version
 	version    string
 	subversion string
-}
 
-func (p *Photograph) filename() (name string) {
-	// Identifier
-	name += p.date
-	name += "-"
-	if p.letter != "none" {
-		name += p.letter
-	}
-	name += p.number
-
-	name += "_"
-
-	// Group
-	if p.class != "none" {
-		name += p.class + "-"
-	}
-	name += p.group
-
-	name += "_"
-
-	// Version
-	name += p.version
-	if p.subversion != "none" {
-		name += "-" + p.subversion
-	}
-
-	return
+	extension string
 }
 
 // Init attempts to create a photograph from the given filename and returns an error if it couldn't
 func (p *Photograph) init(name string) error {
-	name = strings.TrimSuffix(name, filepath.Ext(name))
+	p.extension = filepath.Ext(name)
+	name = strings.TrimSuffix(name, p.extension)
 
 	tokens := strings.Split(name, "_")
 	if len(tokens) != 3 {
@@ -143,11 +118,57 @@ func (p *Photograph) init(name string) error {
 		if !validVersion || err != nil {
 			return errors.New("filename invalid. Use format version-subversion or just version")
 		}
-		p.version = groups[0]
+		p.version = versions[0]
 		p.subversion = "none"
 	}
 
 	return nil
+}
+
+func (p *Photograph) filename() (name string) {
+	// Identifier
+	name += p.date
+	name += "-"
+	if p.letter != "none" {
+		name += p.letter
+	}
+	name += p.number
+
+	name += "_"
+
+	// Group
+	if p.class != "none" {
+		name += p.class + "-"
+	}
+	name += p.group
+
+	name += "_"
+
+	// Version
+	name += p.version
+	if p.subversion != "none" {
+		name += "-" + p.subversion
+	}
+
+	name += p.extension
+
+	return
+}
+
+func (p *Photograph) directory() (dir string) {
+
+	if p.class != "none" {
+		dir = filepath.Join(dir, p.class+"s")
+	}
+
+	dir = filepath.Join(dir, p.group)
+	dir = filepath.Join(dir, p.version+"s")
+
+	if p.subversion != "none" {
+		dir = filepath.Join(dir, p.subversion)
+	}
+
+	return
 }
 
 /*
@@ -187,7 +208,7 @@ func getFileTable(files []string) (table string) {
 
 	maxLength := 0
 	for _, f := range files {
-		if len(f) > 0 {
+		if len(f) > maxLength {
 			maxLength = len(f)
 		}
 	}
@@ -519,7 +540,6 @@ func main() {
 			ext := strings.ToLower(filepath.Ext(files[s]))
 			if !slices.Contains(rawExts, ext) {
 				defaultDate = "none"
-				fmt.Println("disabled autodating at index", s)
 				break
 			}
 		}
@@ -598,17 +618,9 @@ func main() {
 			photograph.number = fmt.Sprintf("%0*s", padding, number)
 			dateCounter[photograph.date] += 1
 
-			filename := photograph.filename()
+			photograph.extension = filepath.Ext(files[s])
 
-			ext := filepath.Ext(files[s])
-			if ext == ".jpeg" {
-				ext = ".jpg"
-			} else if ext == ".tiff" {
-				ext = ".tif"
-			}
-			filename += strings.ToLower(ext)
-
-			newFilenames = append(newFilenames, filename)
+			newFilenames = append(newFilenames, photograph.filename())
 		}
 
 		output = ""
@@ -678,9 +690,10 @@ func main() {
 			fmt.Println("Error: no image files found in archive directory")
 		}
 
-		var validPhotos []Photograph
-		var invalidPhotos []Photograph
-		var p *Photograph
+		validPhotos := []Photograph{}
+		validFiles := []string{}
+		invalidPhotos := []Photograph{}
+		p := new(Photograph)
 		for _, f := range files {
 			p = new(Photograph)
 			err := p.init(filepath.Base(f))
@@ -688,10 +701,67 @@ func main() {
 				invalidPhotos = append(invalidPhotos, *p)
 			} else {
 				validPhotos = append(validPhotos, *p)
+				validFiles = append(validFiles, f)
 			}
 		}
 
 		fmt.Println("Found", len(validPhotos), "valid photos")
+
+		// Abort if the folder has less than 2/3rds validly named photos
+		if float64(len(validPhotos)) < (0.66 * float64(len(files))) {
+			fmt.Println("Less than 2/3rds of images in this directory are named correctly.")
+			fmt.Println("Check that this is your archive!")
+			return
+		}
+
+		// Create directories
+		for _, p := range validPhotos {
+			dir := filepath.Join(*sortDir, p.directory())
+			err := os.MkdirAll(dir, 0755)
+			if err != nil {
+				fmt.Println("Error: trouble while creating directory", dir)
+				fmt.Println(err)
+				return
+			}
+			fmt.Println("Created folder", dir)
+		}
+
+		// Move valid photos to their directories
+		for i, f := range validFiles {
+			old := f
+			new := filepath.Join(*sortDir, validPhotos[i].directory(), validPhotos[i].filename())
+			err = os.Rename(f, new)
+			if err != nil {
+				fmt.Println("Error: something went wrong moving", old)
+				fmt.Println(err)
+			}
+			fmt.Println("Moved", old, "to", new)
+		}
+
+		/*
+			// Delete totally empty directories
+			err = filepath.WalkDir(*sortDir, func(path string, d fs.DirEntry, err error) error {
+				if d.IsDir() && path != *sortDir {
+					contents, err := os.ReadDir(path)
+					if err != nil {
+						return err
+					}
+
+					if len(contents) == 0 {
+						err = os.Remove(path)
+						if err != nil {
+							return err
+						}
+					}
+				}
+				return nil
+			})
+			if err != nil {
+				fmt.Println("Error: something went wrong cleaning empty directories")
+				fmt.Println(err)
+			}*/
+
+		// Put invalid photos in base directory
 		fmt.Println("Found", len(invalidPhotos), "invalid photos")
 
 	default:
