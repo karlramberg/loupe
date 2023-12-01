@@ -485,6 +485,7 @@ func main() {
 	fmt.Print("Loupe v0.1.0")
 
 	if len(os.Args) < 2 {
+		fmt.Println("")
 		fmt.Println("Error: no subcommand provided")
 		return
 	}
@@ -765,6 +766,7 @@ func main() {
 		fmt.Println("Found", len(invalidPhotos), "invalid photos")
 
 	default:
+		fmt.Println("")
 		fmt.Printf("Error: command \"%s\" not found\n", os.Args[1])
 	}
 }
