@@ -1,7 +1,7 @@
 # Loupe
 
 
-A gnostic command line interface for organizing an archive of photographs
+A stubborn command line interface for organizing an archive of photographs
 
 ## Summary
 
@@ -57,7 +57,7 @@ photographs/
 
 Note that every image must have a group, but that the group does not need to be in a class. Also note that files must have a version, but not always a subversion.
 
-### Why is Loupe gnostic?
+### Why is Loupe stubborn?
 
 Loupe offers only one way of organizing photographs - by group and version. This is because offering "sane defaults" is sometimes a lot more useful than offering a host of complex and configurable ways of organizing files. I do not want Loupe to trigger analysis paralysis in it's user. I simply want it to do a few things well and get the hell out of the way when it's not in use. I did want Loupe to use external files to work. My biggest problem with software like AdobeLightroom is the need to launch a bloated piece of software to simply browse your pictures in theway you organized them. File and folder systems will not go anywhere, will not change, and will be readable on any system.
 
