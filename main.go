@@ -726,6 +726,7 @@ func main() {
 		fmt.Println("Found", len(invalidFiles), "invalid photos")
 
 	default:
+		fmt.Println("")
 		fmt.Printf("Error: command \"%s\" not found\n", os.Args[1])
 	}
 }
