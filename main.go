@@ -655,27 +655,23 @@ func main() {
 			return
 		}
 
-		// Create directories that don't exist
-		var madeDirs []string
-		for _, photo := range validPhotos {
-			dir := filepath.Join(*sortDir, photo.directory())
+		// Move the photo to it's directory, creating it if it doesn't exist
+		for index, photo := range validPhotos {
+			newdir := filepath.Join(*sortDir, photo.directory())
+			newpath := filepath.Join(newdir, photo.filename())
+			oldpath := validFiles[index]
 
-			_, err := os.Stat(dir)
-			if !slices.Contains(madeDirs, dir) && os.IsNotExist(err) {
-				err := os.MkdirAll(dir, 0755)
+			_, err := os.Stat(newdir)
+			if os.IsNotExist(err) {
+				err := os.MkdirAll(newdir, 0755)
 				if err != nil {
-					fmt.Println("Error: trouble while creating directory", dir)
+					fmt.Println("Error: trouble while creating directory", newdir)
 					fmt.Println(err)
 					return
 				}
-				madeDirs = append(madeDirs, dir)
-				fmt.Println("Created folder", dir)
+				fmt.Println("Created folder", newdir)
 			}
-		}
 
-		// Move valid photos to their directories
-		for index, oldpath := range validFiles {
-			newpath := filepath.Join(*sortDir, validPhotos[index].directory(), validPhotos[index].filename())
 			if oldpath != newpath {
 				err = os.Rename(oldpath, newpath)
 				if err != nil {
