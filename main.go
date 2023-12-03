@@ -47,13 +47,13 @@ func (p *Photograph) init(name string) error {
 
 	validDate, err := validDate(indentifier[0])
 	if !validDate {
-		return err
+		return errors.Join(errors.New("filename invalid. Date is incorrect"), err)
 	}
 	p.date = indentifier[0]
 
 	validNumber, err := regexp.MatchString("^([A-Z]*[0-9]+)$", indentifier[1])
 	if !validNumber || err != nil {
-		return errors.New("filname invalid. Number should only capital letters and numbers")
+		return errors.Join(errors.New("filname invalid. Number should only capital letters and numbers"))
 	}
 	p.number = indentifier[1]
 
@@ -68,14 +68,14 @@ func (p *Photograph) init(name string) error {
 		validGroup, err2 := validWord(groups[1])
 		err = errors.Join(err1, err2)
 		if !validClass || !validGroup || err != nil {
-			return errors.New("filename invalid. User format class-group or just group")
+			return errors.Join(errors.New("filename invalid. User format class-group or just group"), err)
 		}
 		p.class = groups[0]
 		p.group = groups[1]
 	} else {
 		validGroup, err := validWord(groups[0])
 		if !validGroup || err != nil {
-			return errors.New("filename invalid. Group can only contain alphanumeric characters")
+			return errors.Join(errors.New("filename invalid. Group can only contain alphanumeric characters"))
 		}
 		p.class = "none"
 		p.group = groups[0]
@@ -92,14 +92,14 @@ func (p *Photograph) init(name string) error {
 		validSubversion, err2 := validWord(versions[1])
 		err = errors.Join(err1, err2)
 		if !validVersion || !validSubversion || err != nil {
-			return errors.New("filename invalid. User format version-subversion or just version")
+			return errors.Join(errors.New("filename invalid. User format version-subversion or just version"), err)
 		}
 		p.version = versions[0]
 		p.subversion = versions[1]
 	} else {
 		validVersion, err := validWord(versions[0])
 		if !validVersion || err != nil {
-			return errors.New("filename invalid. Use format version-subversion or just version")
+			return errors.Join(errors.New("filename invalid. Use format version-subversion or just version"), err)
 		}
 		p.version = versions[0]
 		p.subversion = "none"
@@ -169,7 +169,7 @@ func getImageFiles(dir string) (files []string, err error) {
 		return nil
 	})
 	if err != nil {
-		return nil, errors.New("there was trouble reading files from the directory")
+		return nil, errors.Join(errors.New("there was trouble reading files from the directory"), err)
 	}
 
 	return
@@ -198,7 +198,7 @@ func promptInput(scanner *bufio.Scanner, prompt, defaultInput string) (string, e
 	scanner.Scan()
 
 	if err := scanner.Err(); err != nil {
-		return "", errors.New("something failed while scanning for input")
+		return "", errors.Join(errors.New("something failed while scanning for input"), err)
 	}
 
 	if scanner.Text() == "" {
@@ -210,7 +210,7 @@ func promptInput(scanner *bufio.Scanner, prompt, defaultInput string) (string, e
 func promptSelection(scanner *bufio.Scanner, length int) ([]int, error) {
 	input, err := promptInput(scanner, "Select files", "all")
 	if err != nil {
-		return nil, errors.New("something failed while scanning for input")
+		return nil, err
 	}
 
 	if input == "all" {
@@ -224,7 +224,7 @@ func promptSelection(scanner *bufio.Scanner, length int) ([]int, error) {
 	*/
 	valid, err := regexp.MatchString("^(([0-9]+([-][0-9]+)?)([,]([0-9]+([-][0-9]+)?))*)$", input)
 	if !valid || err != nil {
-		return nil, errors.New("invaild selection expression")
+		return nil, errors.Join(errors.New("invaild selection expression"), err)
 	}
 
 	// Build a slice of indices based on the validated expression
@@ -298,11 +298,8 @@ func promptNumber(scanner *bufio.Scanner) (string, string, error) {
 		// Check that the given letter is only capital letters
 		input = strings.ToUpper(input)
 		valid, err := regexp.MatchString("^([A-Z]+)$", input)
-		if err != nil {
-			return "", "", errors.New("something went wrong parsing the input")
-		}
-		if !valid {
-			return "", "", errors.New("invalid roll letter. Only use alphabetic characters")
+		if !valid || err != nil {
+			return "", "", errors.Join(errors.New("invalid roll letter. Only use alphabetic characters"), err)
 		}
 	}
 	letter := input
@@ -316,7 +313,7 @@ func promptNumber(scanner *bufio.Scanner) (string, string, error) {
 	// Check that the number is only digits
 	valid, err := regexp.MatchString("^([0-9]+)$", input)
 	if !valid || err != nil {
-		return "", "", errors.New("invalid start number. Only use a whole number")
+		return "", "", errors.Join(errors.New("invalid start number. Only use a whole number"), err)
 	}
 
 	// %0*s pads input with 0s so the has length of pad
@@ -358,7 +355,7 @@ func validDate(date string) (bool, error) {
 	day, err3 := strconv.Atoi(date[6:8])
 	err := errors.Join(err1, err2, err3)
 	if err != nil {
-		return false, errors.New("invalid date. Only use digits")
+		return false, errors.Join(errors.New("invalid date. Only use digits"))
 	}
 
 	// Check if the month is valid
@@ -402,7 +399,7 @@ func promptWord(scanner *bufio.Scanner, prompt, defaultWord string) (string, err
 func validWord(word string) (bool, error) {
 	valid, err := regexp.MatchString("^([a-z0-9]+)$", word)
 	if !valid || err != nil {
-		return false, errors.New("invalid word. Only use alphanumeric characters")
+		return false, errors.Join(errors.New("invalid word. Only use alphanumeric characters"), err)
 	}
 	return true, nil
 }
@@ -618,8 +615,8 @@ func main() {
 				newpath, err2 := filepath.Abs(files[selection])
 				err = errors.Join(err1, err2)
 				if err != nil {
-					fmt.Println("Error: something went wrong finding final file paths")
-					fmt.Println(err)
+					err = errors.Join(errors.New("can't find final file paths"), err)
+					fmt.Println("Error:", err)
 				}
 
 				newpath = filepath.Dir(newpath)
@@ -627,8 +624,8 @@ func main() {
 
 				err = os.Rename(oldpath, newpath)
 				if err != nil {
-					fmt.Println("Error: there was a problem renaming", files[selection])
-					fmt.Println(err)
+					err = errors.Join(errors.New("there was a problem renaming "+files[selection]), err)
+					fmt.Println("Error:", err)
 				} else {
 					fmt.Println("Renamed", filepath.Base(oldpath), "to", filepath.Base(newpath))
 				}
