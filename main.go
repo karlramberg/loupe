@@ -421,6 +421,38 @@ func promptConfimation(scanner *bufio.Scanner) (bool, error) {
 	return false, nil
 }
 
+// Traverses a directory, recursively removing any empty subdirectories
+func cleanEmptyDirs(dir string) (bool, error) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return false, errors.Join(errors.New("something went wrong reading "+dir), err)
+	}
+
+	removedCount := 0
+	for _, entry := range entries {
+		if entry.IsDir() {
+			removed, err := cleanEmptyDirs(filepath.Join(dir, entry.Name()))
+			if err != nil {
+				return false, err
+			}
+			if removed {
+				removedCount++
+			}
+		}
+	}
+
+	if len(entries)-removedCount <= 0 {
+		err := os.Remove(dir)
+		if err != nil {
+			return false, errors.Join(errors.New("something went wrong removing "+dir), err)
+		}
+		fmt.Println("Removed empty directory", dir)
+		return true, nil
+	}
+
+	return false, nil
+}
+
 func main() {
 	nameCmd := flag.NewFlagSet("name", flag.ExitOnError)
 	nameDir := nameCmd.String("w", "", "Working directory")
@@ -560,7 +592,7 @@ func main() {
 				padding = 2
 			}
 			photo.number = fmt.Sprintf("%0*s", padding, number)
-			dateCounter[photo.date] += 1
+			dateCounter[photo.date]++
 
 			photo.extension = strings.ToLower(filepath.Ext(files[selection]))
 
@@ -646,8 +678,6 @@ func main() {
 			}
 		}
 
-		fmt.Println("Found", len(validPhotos), "valid photos")
-
 		// Abort if the folder has less than 2/3rds validly named photos
 		if float64(len(validPhotos)) < (0.66 * float64(len(files))) {
 			fmt.Println("Less than 2/3rds of images in this directory are named correctly.")
@@ -695,31 +725,14 @@ func main() {
 			}
 		}
 
-		/*
-			// Delete totally empty directories
-			err = filepath.WalkDir(*sortDir, func(path string, d fs.DirEntry, err error) error {
-				if d.IsDir() && path != *sortDir {
-					contents, err := os.ReadDir(path)
-					if err != nil {
-						return err
-					}
+		// Clean empty directories
+		_, err = cleanEmptyDirs(*sortDir)
+		if err != nil {
+			fmt.Println("Error:", err)
+		}
 
-					if len(contents) == 0 {
-						err = os.Remove(path)
-						if err != nil {
-							return err
-						}
-					}
-				}
-				return nil
-			})
-			if err != nil {
-				fmt.Println("Error: something went wrong cleaning empty directories")
-				fmt.Println(err)
-			}*/
-
-		// Put invalid photos in base directory
-		fmt.Println("Found", len(invalidFiles), "invalid photos")
+		fmt.Println(len(validPhotos), "valid photos sorted")
+		fmt.Println(len(invalidFiles), "invalid photos moved to", *sortDir)
 
 	default:
 		fmt.Println("")
