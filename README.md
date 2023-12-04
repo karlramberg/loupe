@@ -78,6 +78,10 @@ Sort is meant to be run on folder with many many properlly named photographs. If
 
 WIP
 
+###  `loupe zip -a group version`
+
+WIP
+
 ### `loupe help`
 
 Help will print an abridged verson of this README and a link to the full one into your console.
