@@ -110,22 +110,17 @@ func (p *Photograph) init(name string) error {
 // Construct the photograph's filename from its data
 func (p *Photograph) filename() (name string) {
 	// Identifier
-	name += p.date
-	name += "-"
+	name += p.date + "-"
 	if p.letter != "none" {
 		name += p.letter
 	}
-	name += p.number
-
-	name += "_"
+	name += p.number + "_"
 
 	// Group(s)
 	if p.class != "none" {
 		name += p.class + "-"
 	}
-	name += p.group
-
-	name += "_"
+	name += p.group + "_"
 
 	// Version(s)
 	name += p.version
@@ -155,6 +150,37 @@ func (p *Photograph) directory() (dir string) {
 	return
 }
 
+func (p *Photograph) identifier() (i string) {
+	i += p.date + "-"
+	if p.letter != "none" {
+		i += p.letter
+	}
+	i += p.number
+	return
+}
+
+func (p *Photograph) classDir() string {
+	if p.class == "none" {
+		return ""
+	}
+	return p.class + "s"
+}
+
+func (p *Photograph) groupDir() string {
+	return filepath.Join(p.classDir(), p.group)
+}
+
+func (p *Photograph) versionDir() string {
+	return filepath.Join(p.groupDir(), p.version+"s")
+}
+
+func (p *Photograph) subversionDir() string {
+	if p.subversion == "none" {
+		return ""
+	}
+	return filepath.Join(p.versionDir(), p.subversion)
+}
+
 var monthLen = []int{31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}
 
 // Validates a given string is a proper date in YYYYMMDD format
@@ -169,7 +195,7 @@ func validDate(date string) (bool, error) {
 	day, err3 := strconv.Atoi(date[6:8])
 	err := errors.Join(err1, err2, err3)
 	if err != nil {
-		return false, errors.Join(errors.New("only use digits"))
+		return false, errors.New("only use digits")
 	}
 
 	// Check if the month is valid

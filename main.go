@@ -277,6 +277,9 @@ func main() {
 	nameCmd := flag.NewFlagSet("name", flag.ExitOnError)
 	nameDir := nameCmd.String("w", "", "Working directory")
 
+	refactorCmd := flag.NewFlagSet("refactor", flag.ExitOnError)
+	refactorDir := refactorCmd.String("a", "", "Archive directory")
+
 	sortCmd := flag.NewFlagSet("sort", flag.ExitOnError)
 	sortDir := sortCmd.String("a", "", "Archive directory")
 
@@ -292,6 +295,14 @@ func main() {
 	case "name":
 		nameCmd.Parse(os.Args[2:])
 		err := name(*nameDir)
+		if err != nil {
+			fmt.Println("Error:", err)
+		}
+
+	// Change the name of a class, group, version or subversion
+	case "refactor":
+		refactorCmd.Parse(os.Args[2:])
+		err := refactor(*refactorDir)
 		if err != nil {
 			fmt.Println("Error:", err)
 		}

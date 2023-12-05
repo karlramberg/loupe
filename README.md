@@ -1,18 +1,20 @@
 # Loupe
 
-Loupe is simple set of commands you can run to organize a folder of photographs. This includes file naming, refactoring, sorting, and importing. Loupe requires no external configuration files to run. Filenames hold the metadata used to organize themselves.
+Loupe is a set of commands to organize photographs. This includes file naming, sorting, and refactoring. Loupe requires no configuration files; filenames hold their own metadata.
 
-## Naming and folders
+## File names and folder structure 
 
-Loupe names a photograph with four to six pieces of information: the date shot, a number to sequence each date, an optional class, a group, a version, and an optional subversion. The date and number form an identifier that ties different versions of an image together. Each file is sorted into folders first by class (if present), then group, version, and finally subversion (if present). Dates are formatted YYYYMMDD, the number starts at 1 and is padded to 3 digits for readability.
+Loupe names photographs with four to six attributes. Required attributes are the date shot, a number to sequence each date, a group, and a version. Optionally you can give the group a class to organize your groups and you can give your versions subversions to better organize many files.
 
-If a file orginates from a roll of film, you can name it slightly differently. The first digit of the number is replaced with a roll letter (A-Z) and the number after then represents the frame on the roll.
+The date and sequence number form the identifier that ties different versions of an image together across an archive. Dates are formatted YYYYMMDD, the number starts at 1 and is padded to 3 digits for readability. If a file orginates from a roll of film, you can name it slightly differently. The first digit of the number is replaced with a roll letter (A-Z) and the number after then represents the frame on the roll.
+
+Photographs are sorted into folders first by class (if present), then group, version, and finally subversion (if present).
 
 ### Two example filenames
 
-`20241201-007_granite_master.tif` would be the name for the master tif file of the 7th photograph taken on December 1st, 2024, grouped into granite. It would reside in the folder `photographs/granite/masters/`.
+`20241201-007_granite_master.tif` would be the name for the master tif file of the 7th photograph taken on December 1st, 2024, grouped into "granite". It would reside in the folder `photographs/granite/masters/`.
 
-`20270630-B28_trip-berlin_print-8x10.tif` would be the name for the print-ready file, sized to 8x10" of the 28th frame on the 2nd roll started on June 30th, 2027, on a trip to Berlin. It would reside in the folder `photographs/trips/berlin2023/prints/8x10/`.
+`20270630-B28_trip-berlin2023_print-8x10.tif` would be the name for the print-ready file, sized to 8x10" of the 28th frame on the 2nd roll started on June 30th, 2027, on a trip to Berlin. It would reside in the folder `photographs/trips/berlin2023/prints/8x10/`.
 
 ### An example folder
 
@@ -54,13 +56,13 @@ photographs/
 					20271102-003_assignment-chalk_print-16x20.tif
 ```
 
-Loupe has no restrictions on how you name your classes, groups, versions or subversions - except that they only contain alphanumeric characters. Note that for classes and versions, Loupe will add an "s" to the folder name that the filenames don't have.
+Loupe has no restrictions on how classes, groups, versions or subversions are named, except that they only contain alphanumeric characters. Note that for classes and versions, Loupe will add an "s" to the folder name that the filenames don't have.
 
 ## Commands
 
 ### `loupe name -w`
 
-Name is the command used to create shiny new filenames for new photographs. It asks the user for every part required and and every part optional in a filename. When renaming, it ignores any previous name a file had. Ideally this command should only be used once on each photograph when it is brought into the archive.
+Name is the command used to create shiny new filenames for new photographs. It asks the user for every part required and and every part optional in a filename. When renaming, it ignores any previous name a file had. Ideally this command should only be used once on each photograph when it is brought into an archive.
 
 This is the only command that can change the identifier (date and number) of a photograph. An identifier is the most sensitive part of a filename, because it ties different file versions together and ties a digital file to a physical object such as a print or film negative. For these reasons, it is recommended that you never use this command in your archive directory, only in a working directoy that you will ingest later. A warning will appear if you point it to a directory with over 50 image files. Do not point `-w` at your archive.
 
@@ -68,25 +70,19 @@ Name has the option of dating your raw files automatically. Only raw files can b
 
 ### `loupe sort -a`
 
-Sort is the command used to organize the files you've spent time naming. Properly named files will be moved to their respective directories: first by their class if present, then group, version, and finally subversion if present. Files that aren't properly named will be put into the base directory for you to deal with.
+Sort is the command used to organize the files you've spent time naming. Properly named files will be moved to their respective directories: first by their class if present, then group, version, and finally subversion if present. Files that aren't properly named will be put into the base directory to fix.
 
-Note that Sort (and any other command that calls sort after it's used) will ignore any folder that starts with an underscore. This is essential for keeping auxillary files next to your photographs if you are working on a larger, more complex project. For example, in longterm photography projects where I need to deepdive on locations, people, art or writings, I will make a _research/ folder to hold all of this. Loupe won't touch it.
-
-Sort is meant to be run on folder with many many properlly named photographs. If a folder you attempt to sort is more than a third improperly named image files, a warning is given and the command stops. This is to avoid a mess in the base directory and protect against accidently running the command in the wrong folder. Do not point `-a` at your crusty chaotic working directory.
-
-### `loupe stats -a`
-
-WIP
-
-###  `loupe zip -a group version`
-
-WIP
+Sort is designed to run in a directory with many properlly named photographs. If a folder you attempt to sort is more than a third improperly named, a warning is given and a confirmation is needed. This is to avoid a mess in the base directory and protect against accidently running the command in the wrong folder. Do not point `-a` at your crusty chaotic working directory.
 
 ### `loupe help`
 
 Help will print an abridged verson of this README and a link to the full one into your console.
 
-### Notes on flags
+### Underscore directories
+
+Note that sort (and any other command that calls sort after it's used) will ignore any folder that starts with an underscore. This is essential for keeping auxillary files next to your photographs if you are working on a larger, more complex project. For example, in longterm photography projects where I need to deepdive on locations, people, art or writings, I will make a `_research/` folder to hold all of this. Loupe won't touch it.
+
+### Flags
 
 `-w` is the flag to point an operation to a working directory.
 
@@ -95,6 +91,8 @@ Help will print an abridged verson of this README and a link to the full one int
 Every operation except `help` mandates the use of a `-w` or `-a` flag. This is by design to stop braindead command typing. The user is always forced to think if they are running Loupe in a working directory with a little temporary chaos or if they are running Loupe in their organized archive. When sensitive data is at risk, being explicit and moving a little slower is important. 
 
 ## Installation
+
+TODO
 
 ## Errata
 
@@ -110,9 +108,6 @@ For all of these reasons, Loupe offers no way of configuring anything. Date are 
 
 ### Why is Loupe only for the command line?
 
-Loupe is written for the command line because I have failed to find a good, lightweight, stable, and cross-platform UI library for Go. I want Loupe to be easy to maintain by myself, so a dependency on a framework or a library with spotty maintenance doesn't appeal to me. I want Loupe to work when I'm 50 as well as it does today.
+Loupe is currently written for the command line because I have failed to find a good, lightweight, stable, and cross-platform UI library for Go. I want Loupe to be easy to maintain by myself, so a dependency on a framework or a library with spotty maintenance doesn't appeal to me. I want Loupe to work when I'm 50 as well as it does today.
 
 When planning Loupe, I also found that all the things I wanted it to do are very procedural. It lends its self to a very basic "ask the user questions one at a time and do things based on the answers", rather than a complex UI where it can be easy for a user to not check a box or be overwhelmed by options.
-
-
-
