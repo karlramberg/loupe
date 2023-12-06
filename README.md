@@ -1,4 +1,4 @@
-# Loupe
+# Loupe (Under development!!!)
 
 Loupe is a set of commands to organize photographs. This includes file naming, sorting, and refactoring. Loupe requires no configuration files; filenames hold their own metadata.
 
