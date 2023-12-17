@@ -11,12 +11,14 @@
 
 /*
 TODO for v1
-[ ] Commands for renaming attributes (renameg?)
-[ ] Commands for changing selected identifiers attributes (modifyp?)
+[ ] Commands for renaming attributes (refactor)
+[ ] Commands for changing selected identifiers attributes (modify)
 [ ] Help command
 [ ] Really solid printing output
 [ ] Robust error messages
 [ ] Good comments for future Karl
+[ ] "print" commands, prints a nice table of valid photos sorted by identifier (good to see a timeline of your work from
+	start to present)
 [x] Clean-up init() in particular
 [x] File clean-up, possible split into multiple (cli and actual data)
 */

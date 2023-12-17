@@ -70,6 +70,8 @@ func sort(dir string) error {
 		}
 	}
 
+	var duplicateCount int
+
 	// Move valids to their directories, creating them if they don't exist
 	for index, photo := range validPhotos {
 		// Check that the new directory exists, creating it if it doesn't
@@ -86,24 +88,31 @@ func sort(dir string) error {
 		// Move the file with the Rename function
 		oldpath := validFiles[index]
 		newpath := filepath.Join(newdir, photo.filename())
-		if oldpath != newpath {
+		_, err = os.Stat(newpath)
+		if os.IsNotExist(err) && oldpath != newpath {
 			err = os.Rename(oldpath, newpath)
 			if err != nil {
 				return errors.Join(errors.New("trouble while moving \""+oldpath+"\""), err)
 			} else {
 				fmt.Println("Moved", filepath.Base(oldpath), "to", filepath.Dir(newpath))
 			}
+		} else if oldpath != newpath {
+			invalidFiles = append(invalidFiles, validFiles[index])
+			duplicateCount++
+			fmt.Println("Left", filepath.Base(oldpath), "alone, file already exists at the destination")
 		}
 	}
 
 	// Move invalids to the base folder
 	for _, oldpath := range invalidFiles {
 		newpath := filepath.Join(dir, filepath.Base(oldpath))
-		err = os.Rename(oldpath, newpath)
-		if err != nil {
-			return errors.Join(errors.New("trouble while moving \""+oldpath+"\""), err)
-		} else {
-			fmt.Println("Moved invalid photo", filepath.Base(oldpath), "to", dir)
+		if oldpath != newpath {
+			err = os.Rename(oldpath, newpath)
+			if err != nil {
+				return errors.Join(errors.New("trouble while moving \""+oldpath+"\""), err)
+			} else {
+				fmt.Println("Moved invalid photo", filepath.Base(oldpath), "to", dir)
+			}
 		}
 	}
 
@@ -113,8 +122,8 @@ func sort(dir string) error {
 		return err
 	}
 
-	fmt.Println(len(validPhotos), "valid photos sorted")
-	fmt.Println(len(invalidFiles), "invalid photos moved to", dir)
+	fmt.Println(len(validPhotos)-duplicateCount, "sorted photograph(s)")
+	fmt.Println(len(invalidFiles), "photograph(s) to be fixed")
 
 	return nil
 }
