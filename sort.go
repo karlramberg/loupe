@@ -44,13 +44,13 @@ func sort(dir string) error {
 	var validFiles []string
 	var invalidFiles []string
 	for _, file := range files {
-		var photo Photograph
-		err := photo.init(filepath.Base(file))
+		var photograph Photograph
+		err := photograph.init(filepath.Base(file))
 		if err != nil {
 			fmt.Printf("Found invalid file: \"%s\", %s", file, err)
 			invalidFiles = append(invalidFiles, file)
 		} else {
-			validPhotos = append(validPhotos, photo)
+			validPhotos = append(validPhotos, photograph)
 			validFiles = append(validFiles, file)
 		}
 	}

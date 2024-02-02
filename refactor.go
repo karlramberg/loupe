@@ -7,17 +7,14 @@
 package main
 
 import (
-	"bufio"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
-	"slices"
-	"strconv"
 )
 
-func refactor(dir string) error {
-	fmt.Println("Loupe", loupeVersion, "-", "Refactor")
+func refactor(dir, typeStr, old, new string) error {
+	fmt.Println("Loupe", loupeVersion, "-", "Rename")
 
 	if dir == "" {
 		return errors.New("provide an archive directory using the -a flag")
@@ -26,6 +23,17 @@ func refactor(dir string) error {
 	stats, err := os.Stat(dir)
 	if os.IsNotExist(err) || !stats.IsDir() {
 		return errors.New("directory \"" + dir + "\" not found")
+	}
+
+	validType, err := validType(typeStr)
+	if !validType {
+		return err
+	}
+
+	validOld, err := validWord(old)
+	validNew, err2 := validWord(new)
+	if !validOld || !validNew {
+		return errors.Join(err, err2)
 	}
 
 	files, err := getImageFiles(dir)
@@ -37,79 +45,47 @@ func refactor(dir string) error {
 		return errors.New("no image files found in \"" + dir + "\"")
 	}
 
-	scanner := bufio.NewScanner(os.Stdin)
-	attribute, err := promptWord(scanner, "Enter a class, group, version or subversion", "none")
-	for err != nil && attribute != "none" {
-		fmt.Println("Invalid:", err)
-		attribute, err = promptWord(scanner, "Enter a class, group, version or subversion", "none")
-	}
-	fmt.Printf("Searching for \"%s\"...\n", attribute)
+	var renameCount int
+	for _, file := range files {
+		var photograph Photograph
+		err := photograph.init(filepath.Base(file))
+		if err != nil {
+			continue
+		}
 
-	var classes []string
-	var groups []string
-	var versions []string
-	var subversions []string
-	for _, f := range files {
-		var p Photograph
-		err := p.init(filepath.Base(f))
-		if err == nil {
-			if p.class == attribute && !slices.Contains(classes, p.classDir()) {
-				classes = append(classes, p.classDir())
-			}
-			if p.group == attribute && !slices.Contains(groups, p.groupDir()) {
-				groups = append(groups, p.groupDir())
-			}
-			if p.version == attribute && !slices.Contains(versions, p.versionDir()) {
-				versions = append(versions, p.versionDir())
-			}
-			if p.subversion == attribute && !slices.Contains(subversions, p.subversionDir()) {
-				subversions = append(subversions, p.subversionDir())
+		// Save the photograph's old location before it is changed
+		oldDir := photograph.directory()
+
+		if typeStr == "class" && photograph.class == old {
+			photograph.class = new
+		} else if typeStr == "group" && photograph.group == old {
+			photograph.group = new
+		} else if typeStr == "version" && photograph.version == old {
+			photograph.version = new
+		} else if typeStr == "subversion" && photograph.subversion == old {
+			photograph.subversion = new
+		}
+
+		// Update only the filename with the new grouping
+		oldpath := file
+		newpath := filepath.Join(dir, filepath.Join(oldDir, photograph.filename()))
+		_, err = os.Stat(newpath)
+		if os.IsNotExist(err) && oldpath != newpath {
+			err = os.Rename(oldpath, newpath)
+			if err != nil {
+				return errors.Join(errors.New("trouble while renaming \""+oldpath+"\""), err)
+			} else {
+				fmt.Println("Renamed", oldpath, "to", filepath.Base(newpath))
+				renameCount++
 			}
 		}
 	}
 
-	output := "Found attributes:\n"
-	count := 1
-	for _, c := range classes {
-		output += strconv.Itoa(count) + ". " + c + " \t(class)\n"
-		count++
-	}
-	for _, g := range groups {
-		output += strconv.Itoa(count) + ". " + g + " \t(group)\n"
-		count++
-	}
-	for _, v := range versions {
-		output += strconv.Itoa(count) + ". " + v + " \t(version)\n"
-		count++
-	}
-	for _, s := range subversions {
-		output += strconv.Itoa(count) + ". " + s + " \t(subversion)\n"
-		count++
-	}
-	fmt.Print(output)
+	fmt.Printf("%d files renamed\n", renameCount)
+	fmt.Println()
 
-	index, err := promptList(scanner)
-	for err != nil {
-		fmt.Println("Invalid:", err)
-		index, err = promptList(scanner)
-	}
-	fmt.Println("Selected", index)
-
-	// other shit
+	// Sort the files using their new grouping
+	sort(dir)
 
 	return nil
-}
-
-func promptList(scanner *bufio.Scanner) (int, error) {
-	input, err := promptInput(scanner, "Which did you mean?", "none") // TODO prompt needs work
-	if err != nil {
-		return 0, err
-	}
-
-	index, err := strconv.Atoi(input)
-	if err != nil {
-		return 0, errors.New("only use digits select an item")
-	}
-
-	return index, nil
 }

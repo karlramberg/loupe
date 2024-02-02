@@ -226,3 +226,12 @@ func validWord(word string) (bool, error) {
 	}
 	return true, nil
 }
+
+// Validates that given string is a proper grouping type
+func validType(input string) (bool, error) {
+	valid := (input == "class" || input == "group" || input == "version" || input == "subversion")
+	if !valid {
+		return false, errors.New("invalid type. Use class, group, version or subversion")
+	}
+	return true, nil
+}

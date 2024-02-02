@@ -281,6 +281,9 @@ func main() {
 
 	refactorCmd := flag.NewFlagSet("refactor", flag.ExitOnError)
 	refactorDir := refactorCmd.String("a", "", "Archive directory")
+	refactorType := refactorCmd.String("t", "", "Group type")
+	refactorOld := refactorCmd.String("o", "", "Old group name")
+	refactorNew := refactorCmd.String("n", "", "New group name")
 
 	sortCmd := flag.NewFlagSet("sort", flag.ExitOnError)
 	sortDir := sortCmd.String("a", "", "Archive directory")
@@ -304,7 +307,7 @@ func main() {
 	// Change the name of a class, group, version or subversion
 	case "refactor":
 		refactorCmd.Parse(os.Args[2:])
-		err := refactor(*refactorDir)
+		err := refactor(*refactorDir, *refactorType, *refactorOld, *refactorNew)
 		if err != nil {
 			fmt.Println("Error:", err)
 		}

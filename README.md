@@ -111,3 +111,10 @@ For all of these reasons, Loupe offers no way of configuring anything. Date are 
 Loupe is currently written for the command line because I have failed to find a good, lightweight, stable, and cross-platform UI library for Go. I want Loupe to be easy to maintain by myself, so a dependency on a framework or a library with spotty maintenance doesn't appeal to me. I want Loupe to work when I'm 50 as well as it does today.
 
 When planning Loupe, I also found that all the things I wanted it to do are very procedural. It lends its self to a very basic "ask the user questions one at a time and do things based on the answers", rather than a complex UI where it can be easy for a user to not check a box or be overwhelmed by options.
+
+
+sort - move files to their correct location based on their name
+move - change the grouping on all versions of an identifier, sort
+name - give photographs their identifiers and initial grouping
+
+
