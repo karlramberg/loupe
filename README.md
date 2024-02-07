@@ -74,6 +74,10 @@ Sort is the command used to organize the files you've spent time naming. Properl
 
 Sort is designed to run in a directory with many properlly named photographs. If a folder you attempt to sort is more than a third improperly named, a warning is given and a confirmation is needed. This is to avoid a mess in the base directory and protect against accidently running the command in the wrong folder. Do not point `-a` at your crusty chaotic working directory.
 
+### `loupe refactor -a -t -o -n`
+
+Refactor is the command to rename a grouping. This can work for a class, group, version or subversion. `-t` is the flag to specify the type of the group you want to rename. `-o` is the old name for the grouping, `-n` is the new value. The command is a simple rename. It will rename every file in the group with the new name and it will then sort the archive folder, resulting in the files to be moved to a new folder. Underscored files in the old group name will have to be moved manually. Also note that *any* file with the group name will be renamed. This means that if you want to rename all `negative` versions to just `neg` you can do so with one command. Think of the command as string substitution to fix names you no longer like and not as a tool for reorganizing things.
+
 ### `loupe help`
 
 Help will print an abridged verson of this README and a link to the full one into your console.
@@ -87,6 +91,8 @@ Note that sort (and any other command that calls sort after it's used) will igno
 `-w` is the flag to point an operation to a working directory.
 
 `-a` is the flag to point an operation to an archive directory.
+
+`-t` is the flag used to specify a grouping type. The types are class, group, version and subversion.
 
 Every operation except `help` mandates the use of a `-w` or `-a` flag. This is by design to stop braindead command typing. The user is always forced to think if they are running Loupe in a working directory with a little temporary chaos or if they are running Loupe in their organized archive. When sensitive data is at risk, being explicit and moving a little slower is important. 
 
@@ -111,10 +117,3 @@ For all of these reasons, Loupe offers no way of configuring anything. Date are 
 Loupe is currently written for the command line because I have failed to find a good, lightweight, stable, and cross-platform UI library for Go. I want Loupe to be easy to maintain by myself, so a dependency on a framework or a library with spotty maintenance doesn't appeal to me. I want Loupe to work when I'm 50 as well as it does today.
 
 When planning Loupe, I also found that all the things I wanted it to do are very procedural. It lends its self to a very basic "ask the user questions one at a time and do things based on the answers", rather than a complex UI where it can be easy for a user to not check a box or be overwhelmed by options.
-
-
-sort - move files to their correct location based on their name
-move - change the grouping on all versions of an identifier, sort
-name - give photographs their identifiers and initial grouping
-
-
