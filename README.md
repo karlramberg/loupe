@@ -1,6 +1,6 @@
 # Loupe (Under development!!!)
 
-Loupe is a set of commands to organize photographs. This includes file naming, sorting, and refactoring. Loupe requires no configuration files; filenames hold their own metadata.
+Loupe is a set of commands to organize photographs. This includes file naming, sorting, and refactoring. Loupe requires no configuration files; filenames hold their own metadata. A more user-friendly frontend to run these commands is in development.
 
 ## File names and folder structure 
 
